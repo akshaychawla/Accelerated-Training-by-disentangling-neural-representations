@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt 
-import os, sys 
+import os, sys, time, pickle
 import wide_residual_network as wrn 
 from keras.datasets import cifar10 
 from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, TensorBoard 
@@ -13,7 +13,13 @@ batch_size = 128
 epochs   = 200 
 img_rows, img_cols = 32, 32 
 weight_decay = 0.0005 
-root_folder = "./baseline/"
+
+# Logs + checkpoints directory 
+root_folder = "./RUN_{}/".format(time.time())
+os.makedirs(root_folder) 
+os.makedirs(root_folder+"logs")
+os.makedirs(root_folder+"checkpoints")
+print("Created folders in .. ",root_folder) 
 
 # Dataset 
 (trainX, trainY), (testX, testY) = cifar10.load_data()
@@ -68,7 +74,7 @@ sgd = SGD(lr=0.1, momentum=0.9, nesterov=True)
 model.compile(loss="categorical_crossentropy", optimizer=sgd) 
 
 # Train 
-model.fit_generator(
+history = model.fit_generator(
         train_dgen.flow(trainX, trainY, batch_size=batch_size),
         steps_per_epoch=len(trainX) // batch_size + 1, 
         validation_data=test_dgen.flow(testX, testY, batch_size=batch_size),
@@ -76,6 +82,10 @@ model.fit_generator(
         epochs=epochs,
         callbacks=[lrschedule, tboard, checkpoint]
     )
+with open(os.path.join(root_folder, "history.pkl"),"wb") as f:
+    pickle.dump(history.history, f)
+print("stored history to disk at ", os.path.join(root_folder, "history.pkl"))
+
 
 
 
