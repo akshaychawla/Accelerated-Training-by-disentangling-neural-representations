@@ -71,7 +71,7 @@ model = wrn.create_wide_residual_network(
         )
 print(model.summary())
 sgd = SGD(lr=0.1, momentum=0.9, nesterov=True)
-model.compile(loss="categorical_crossentropy", optimizer=sgd) 
+model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"]) 
 
 # Train 
 history = model.fit_generator(
