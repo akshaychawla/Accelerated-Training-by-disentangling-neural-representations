@@ -130,7 +130,7 @@ dgen = batched_triplet_generator(batch_size=16)
 history = model.fit_generator(
         dgen, 
         steps_per_epoch=500,
-        epochs=5, 
+        epochs=50, 
         callbacks=[valcb, lrreduce]
         )
 
