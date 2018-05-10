@@ -101,18 +101,21 @@ def batched_data_generator(batch_size):
         yield  batch, truth
 
 def _test_generator():
+    dgen = batched_data_generator(batch_size=32)
+    data, target = next(dgen)
 
-    dgen = batched_triplet_generator(batch_size=32)
-    data, _ = next(dgen)
-
+    print "\n\t--testing data generator--"
     for idx in range(8):
         anc_idx = np.random.randint(0, 32)
-        catted  = np.hstack( [data[anc_idx,:,:,0],data[anc_idx+32,:,:,0], data[anc_idx+32+32,:,:,0]] )
+        catted  = np.hstack([data[anc_idx,:,:,0],data[anc_idx+32,:,:,0], data[anc_idx+32+32,:,:,0]])
+        print np.argmax(target[[anc_idx, anc_idx+32, anc_idx+32+32]], axis=1)
         plt.subplot(8,1,idx+1)
         plt.imshow(catted)
     plt.show()
+    print "\t--done--\n"
 
 _test_generator()
+import ipdb; ipdb.set_trace()
 
 """
 Validation method
@@ -157,7 +160,7 @@ model.compile(optimizer="sgd", loss=custom_loss)
 valcb = valid_callback(top_k=100, num_samples=400)
 lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-08)
 
-dgen = batched_triplet_generator(batch_size=16)
+dgen = batched_data_generator(batch_size=16)
 
 history = model.fit_generator(
         dgen,
