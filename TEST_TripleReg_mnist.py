@@ -9,7 +9,9 @@ import keras.backend as K
 from keras import optimizers
 from keras.datasets import mnist
 from keras.utils import to_categorical
-from loss_layers import triplet_loss, triplet_loss_batched_wrapper
+from loss_layers import triplet_loss_batched_wrapper, wrapper_categorical_crossentropy
+from keras.losses import categorical_crossentropy
+from keras.optimizers import Adadelta
 
 import numpy as np
 import time
@@ -28,17 +30,17 @@ def nw_arch_mnist():
     inputs = Input(shape=input_shape, name='inputs')
     conv1 = Conv2D(32, kernel_size=(3, 3), activation='relu', name="conv1")(inputs)
     conv2 = Conv2D(64, kernel_size=(3, 3), activation='relu', name="conv2")(conv1)
-    pool = MaxPooling2D(pool_size=(2, 2), name="pool1")(conv2)
+    pool = MaxPooling2D(pool_size=(2, 2), name="pool")(conv2)
     drop = Dropout(0.25)(pool)
     flat = Flatten()(drop)
-    dense = Dense(512, activation='relu')(flat)
+    dense = Dense(128, activation='relu')(flat)
     drop2 = Dropout(0.5)(dense)
-
+    ## ...now, BRANCH!!!
     embed = Dense(EMBEDDING_UNITS, name='embeds')(drop2) ## embeddings for aux loss
     norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embed) ## normed embeddings
     preds = Dense(num_classes, activation='softmax', name='preds')(drop2) ## standard loss
 
-    model = Model(inputs=inputs, outputs=[preds, norms])
+    model = Model(inputs=inputs, outputs=[norms, preds])
     return model
 
 """
@@ -98,11 +100,12 @@ def batched_data_generator(batch_size):
         batch = np.expand_dims(batch, axis=3)
         truth = np.vstack((Y_anc, Y_pos, Y_neg))
 
-        yield  batch, truth
+        yield  batch, {"norms":np.zeros((batch_size*3,EMBEDDING_UNITS)), "preds":truth}
 
 def _test_generator():
     dgen = batched_data_generator(batch_size=32)
-    data, target = next(dgen)
+    data, _ = next(dgen)
+    target = _.get("preds")
 
     print "\n\t--testing data generator--"
     for idx in range(8):
@@ -115,7 +118,6 @@ def _test_generator():
     print "\t--done--\n"
 
 _test_generator()
-import ipdb; ipdb.set_trace()
 
 """
 Validation method
@@ -153,21 +155,28 @@ class valid_callback(Callback):
 """
 TRAIN MODEL
 """
-model = nw_arch_mnist()
-custom_loss = triplet_loss_batched_wrapper(num_triplets=16)
-model.compile(optimizer="sgd", loss=custom_loss)
 
-valcb = valid_callback(top_k=100, num_samples=400)
+model = nw_arch_mnist()
+loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
+loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
+
+model.compile(
+    optimizer = Adadelta(),
+    loss = {"norms" : loss_triplet, "preds" : categorical_crossentropy},
+    loss_weights = {"norms" : 0.0, "preds" : 1.0}
+)
+
 lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-08)
 
 dgen = batched_data_generator(batch_size=16)
 
+import ipdb; ipdb.set_trace()
+
 history = model.fit_generator(
-        dgen,
-        steps_per_epoch=500,
-        epochs=50,
-        callbacks=[valcb, lrreduce]
-        )
+    dgen,
+    steps_per_epoch=500,
+    epochs=50
+)
 
 # perform TSNE
 (x_train, y_train), _ = mnist.load_data()
