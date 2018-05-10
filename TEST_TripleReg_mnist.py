@@ -8,6 +8,7 @@ from keras.models import Sequential, Model
 import keras.backend as K
 from keras import optimizers
 from keras.datasets import mnist
+from keras.utils import to_categorical
 from loss_layers import triplet_loss, triplet_loss_batched_wrapper
 
 import numpy as np
@@ -46,6 +47,9 @@ PREP DATA
 EMBEDDING_UNITS = 64
 
 def triplet_generator():
+    """
+    Returns single data for both loss functions.
+    """
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, y_train = shuffle(x_train, y_train)
 
@@ -57,27 +61,44 @@ def triplet_generator():
         # checks
         assert neg_class != anc_class
 
-        anc = x_train[y_train==anc_class]
-        anc,pos = anc[np.random.choice(anc.shape[0], size=2, replace=False)]
-        neg = x_train[y_train==neg_class]
-        neg = neg[np.random.choice(neg.shape[0], size=1)][0]
+        anchor_xs = x_train[y_train==anc_class]
+        anchor_ys = y_train[y_train==anc_class]
+        _args = np.random.choice(anchor_xs.shape[0], size=2, replace=False)
+        anc, pos = anchor_xs[_args]
+        y_anc, y_pos = to_categorical(anchor_ys[_args], num_classes=10)
 
-        yield anc, pos, neg
+        neg_xs = x_train[y_train==neg_class]
+        neg_ys = y_train[y_train==neg_class]
+        _narg = np.random.choice(neg_xs.shape[0], size=1)[0]
+        neg = neg_xs[_narg]
+        y_neg = to_categorical(neg_ys[_narg], num_classes=10)
 
-def batched_triplet_generator(batch_size):
+        yield (anc, pos, neg), (y_anc, y_pos, y_neg)
+
+def batched_data_generator(batch_size):
+    """
+    Generates data for both loss functions.
+    """
     tgen = triplet_generator()
     while True:
         L_anc, L_pos, L_neg = [], [], []
+        Y_anc, Y_pos, Y_neg = [], [], []
+
         for _ in range(batch_size):
-            anc, pos, neg = next(tgen)
+            (anc, pos, neg), (y_anc, y_pos, y_neg) = next(tgen)
             L_anc.append(anc)
             L_pos.append(pos)
             L_neg.append(neg)
 
+            Y_anc.append(y_anc)
+            Y_pos.append(y_pos)
+            Y_neg.append(y_neg)
+
         batch = np.vstack((L_anc, L_pos, L_neg))
         batch = np.expand_dims(batch, axis=3)
-        
-        yield  batch, np.zeros((batch_size*3,EMBEDDING_UNITS))
+        truth = np.vstack((Y_anc, Y_pos, Y_neg))
+
+        yield  batch, truth
 
 def _test_generator():
 
