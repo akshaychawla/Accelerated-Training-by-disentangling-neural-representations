@@ -2,6 +2,7 @@
 ## This treats the triplet loss as a regularizer.
 ## Possible usecases : faster training, regularizer against FGSM.
 
+from __future__ import print_function
 from keras.callbacks import TensorBoard, ReduceLROnPlateau, Callback
 from keras.layers import Input, Conv2D, MaxPooling2D, Dropout, Flatten, Lambda, Dense
 from keras.models import Sequential, Model
@@ -107,15 +108,15 @@ def _test_generator():
     data, _ = next(dgen)
     target = _.get("preds")
 
-    print "\n\t--testing data generator--"
+    print("\n\t--testing data generator--")
     for idx in range(8):
         anc_idx = np.random.randint(0, 32)
         catted  = np.hstack([data[anc_idx,:,:,0],data[anc_idx+32,:,:,0], data[anc_idx+32+32,:,:,0]])
-        print np.argmax(target[[anc_idx, anc_idx+32, anc_idx+32+32]], axis=1)
+        print(np.argmax(target[[anc_idx, anc_idx+32, anc_idx+32+32]], axis=1))
         plt.subplot(8,1,idx+1)
         plt.imshow(catted)
     plt.show()
-    print "\t--done--\n"
+    print("\t--done--\n")
 
 _test_generator()
 
