@@ -1,11 +1,13 @@
 import keras.backend as K
 from keras.layers import Lambda, concatenate
+from __future__ import print_function
 
 def triplet_loss(y_true, y_pred):
     """
     y_true : FAKE
     y_pred : (3,embedding_units) vector
     """
+    print("\n\n\t\tYOU SHOULD NOT BE USING def:triplet_loss!!!!\n\n")
     alpha = 0.1
     anchor = y_pred[0, :]
     positive = y_pred[1,:]
