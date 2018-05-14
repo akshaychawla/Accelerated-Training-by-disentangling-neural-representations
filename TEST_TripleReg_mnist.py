@@ -19,6 +19,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.manifold import TSNE
+import os, sys, pickle
 
 def nw_arch_mnist():
     """
@@ -118,7 +119,7 @@ def _test_generator():
     plt.show()
     print("\t--done--\n")
 
-_test_generator()
+# _test_generator()
 
 """
 Validation method
@@ -156,6 +157,11 @@ class valid_callback(Callback):
 """
 TRAIN MODEL
 """
+root_folder, norms_wt, preds_wt = sys.argv[1], sys.argv[2], sys.argv[3]
+norms_wt = float(norms_wt)
+preds_wt = float(preds_wt) 
+print("Parameters:")
+print("root: {} | norms_wt: {} | preds_wt: {}".format(root_folder, norms_wt, preds_wt))
 
 model = nw_arch_mnist()
 loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
@@ -164,27 +170,34 @@ loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
 model.compile(
     optimizer = Adadelta(),
     loss = {"norms" : loss_triplet, "preds" : categorical_crossentropy},
-    loss_weights = {"norms" : 0.0, "preds" : 1.0}
+    loss_weights = {"norms" : norms_wt, "preds" : preds_wt},
+    metrics={"preds":"accuracy"}
 )
 
 lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-08)
 
 dgen = batched_data_generator(batch_size=16)
 
-import ipdb; ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
 
 history = model.fit_generator(
     dgen,
     steps_per_epoch=500,
-    epochs=50
+    epochs=1
 )
 
+print("storing history at.. root_folder/history.pkl")
+with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
+    pickle.dump(history.history, f)
+with open(os.path.join(root_folder, "params.txt"), "wt") as f:
+    f.write("preds_wt : {} | norms_wt: {} ".format(preds_wt, norms_wt))
+
 # perform TSNE
-(x_train, y_train), _ = mnist.load_data()
-embeddings_128d = model.predict(np.expand_dims(self.x_train, axis=3), batch_size=256)
-embeddings_2d = TSNE(n_components=2).fit_transform(embeddings_128d)
-for label in range(10):
-    print("Plotting for label ",label)
-    subset_x = embeddings_2d[y_train==label]
-    plt.plot(subset_x[:,0], subset[:,1])
-plt.show()
+# (x_train, y_train), _ = mnist.load_data()
+# embeddings_128d = model.predict(np.expand_dims(self.x_train, axis=3), batch_size=256)
+# embeddings_2d = TSNE(n_components=2).fit_transform(embeddings_128d)
+# for label in range(10):
+    # print("Plotting for label ",label)
+    # subset_x = embeddings_2d[y_train==label]
+    # plt.plot(subset_x[:,0], subset[:,1])
+# plt.show()
