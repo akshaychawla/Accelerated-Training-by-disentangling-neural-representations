@@ -178,12 +178,21 @@ lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, 
 
 dgen = batched_data_generator(batch_size=16)
 
-# import ipdb; ipdb.set_trace()
+def test_dgen():
+    _, (x_test, y_test) = mnist.load_data()
+    x_test = np.expand_dims(x_test, axis=3) 
+    y_test = to_categorical(y_test, num_classes=10)
+    while True:
+        yield x_test, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":y_test}
+test_dgen_obj = test_dgen() 
 
+# import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
     steps_per_epoch=500,
-    epochs=1
+    epochs=50,
+    validation_data = test_dgen_obj,
+    validation_steps = 1
 )
 
 print("storing history at.. root_folder/history.pkl")
