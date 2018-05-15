@@ -9,4 +9,5 @@ __pycache__/
 # RUN - checkpoints + logs 
 RUN*
 
-
+*.pyc
+results/*
