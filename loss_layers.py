@@ -1,6 +1,6 @@
+from __future__ import print_function
 import keras.backend as K
 from keras.layers import Lambda, concatenate
-from __future__ import print_function
 
 def triplet_loss(y_true, y_pred):
     """
