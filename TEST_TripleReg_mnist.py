@@ -13,6 +13,8 @@ from keras.utils import to_categorical
 from loss_layers import triplet_loss_batched_wrapper, wrapper_categorical_crossentropy
 from keras.losses import categorical_crossentropy
 from keras.optimizers import Adadelta
+import tensorflow as tf 
+import random as rn 
 
 import numpy as np
 import time
@@ -20,6 +22,19 @@ import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.manifold import TSNE
 import os, sys, pickle
+
+#################################
+""" 
+SET SEED FOR reproducable RESULTS
+"""
+os.environ["PYTHONHASHSEED"] = "0"
+np.random.seed(1234)
+rn.seed(1234) 
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+tf.set_random_seed(1234)
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+################################
 
 def nw_arch_mnist():
     """
