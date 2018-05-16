@@ -30,10 +30,10 @@ SET SEED FOR reproducable RESULTS
 os.environ["PYTHONHASHSEED"] = "0"
 np.random.seed(1234)
 rn.seed(1234) 
-session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+# session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
 tf.set_random_seed(1234)
-sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
-K.set_session(sess)
+# sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+# K.set_session(sess)
 ################################
 
 def nw_arch_mnist():
@@ -182,14 +182,15 @@ model = nw_arch_mnist()
 loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
 loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
 
+sgd = optimizers.SGD(lr=0.01, momentum=0.9)
 model.compile(
-    optimizer = Adadelta(),
+    optimizer = sgd,
     loss = {"norms" : loss_triplet, "preds" : categorical_crossentropy},
     loss_weights = {"norms" : norms_wt, "preds" : preds_wt},
     metrics={"preds":"accuracy"}
 )
 
-lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-08)
+lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-05)
 
 dgen = batched_data_generator(batch_size=16)
 
@@ -204,10 +205,11 @@ test_dgen_obj = test_dgen()
 # import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
-    steps_per_epoch=500,
-    epochs=50,
+    steps_per_epoch=50,
+    epochs=200,
     validation_data = test_dgen_obj,
-    validation_steps = 1
+    validation_steps = 1,
+    callbacks=[lrreduce]
 )
 
 print("storing history at.. root_folder/history.pkl")
@@ -215,6 +217,7 @@ with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
     pickle.dump(history.history, f)
 with open(os.path.join(root_folder, "params.txt"), "wt") as f:
     f.write("preds_wt : {} | norms_wt: {} ".format(preds_wt, norms_wt))
+model.save_weights(os.path.join(root_folder, "weights.h5")) 
 
 # perform TSNE
 # (x_train, y_train), _ = mnist.load_data()
