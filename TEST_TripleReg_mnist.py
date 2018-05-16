@@ -13,23 +13,24 @@ from keras.utils import to_categorical
 from loss_layers import triplet_loss_batched_wrapper, wrapper_categorical_crossentropy
 from keras.losses import categorical_crossentropy
 from keras.optimizers import Adadelta
-import tensorflow as tf 
-import random as rn 
+import tensorflow as tf
+import random as rn
 
 import numpy as np
 import time
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
 import os, sys, pickle
 
 #################################
-""" 
+"""
 SET SEED FOR reproducable RESULTS
 """
 os.environ["PYTHONHASHSEED"] = "0"
 np.random.seed(1234)
-rn.seed(1234) 
+rn.seed(1234)
 # session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
 tf.set_random_seed(1234)
 # sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
@@ -65,13 +66,26 @@ PREP DATA
 """
 EMBEDDING_UNITS = 64
 
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, y_train = shuffle(x_train, y_train)
+
+im_shape = (x_train.shape[1], x_train.shape[2])
+im_flatten = im_shape[0] * im_shape[1]
+
+stsc = StandardScaler()
+stsc.fit(x_train.reshape( (x_train.shape[0], im_flatten)) )
+
+def _preprocess_data(input_data):
+    bs = input_data.shape[0]
+    return stsc.transform(input_data.reshape((bs, im_flatten))).reshape((bs, im_shape[0], im_shape[1]))
+
+x_train = _preprocess_data(x_train)
+x_test = _preprocess_data(x_test)
+
 def triplet_generator():
     """
     Returns single data for both loss functions.
     """
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, y_train = shuffle(x_train, y_train)
-
     while True:
         anc_class = np.random.randint(0, 10)
         neg_class = None
@@ -134,7 +148,7 @@ def _test_generator():
     plt.show()
     print("\t--done--\n")
 
-# _test_generator()
+_test_generator()
 
 """
 Validation method
@@ -142,8 +156,6 @@ Validation method
 class valid_callback(Callback):
 
     def __init__(self, top_k, num_samples):
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        x_test, y_test = shuffle(x_test, y_test)
         self.x_test = x_test
         self.y_test = y_test
         self.top_k = top_k
@@ -174,7 +186,7 @@ TRAIN MODEL
 """
 root_folder, norms_wt, preds_wt = sys.argv[1], sys.argv[2], sys.argv[3]
 norms_wt = float(norms_wt)
-preds_wt = float(preds_wt) 
+preds_wt = float(preds_wt)
 print("Parameters:")
 print("root: {} | norms_wt: {} | preds_wt: {}".format(root_folder, norms_wt, preds_wt))
 
@@ -182,7 +194,7 @@ model = nw_arch_mnist()
 loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
 loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
 
-sgd = optimizers.SGD(lr=0.01, momentum=0.9)
+sgd = optimizers.SGD(lr=0.01, momentum=0.9, decay=0.0005, nesterov=False)
 model.compile(
     optimizer = sgd,
     loss = {"norms" : loss_triplet, "preds" : categorical_crossentropy},
@@ -190,34 +202,38 @@ model.compile(
     metrics={"preds":"accuracy"}
 )
 
-lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-05)
+lrreduce = ReduceLROnPlateau(monitor="val_preds_acc", factor=0.1, patience=4, verbose=1, min_lr=1e-05)
 
 dgen = batched_data_generator(batch_size=16)
 
 def test_dgen():
-    _, (x_test, y_test) = mnist.load_data()
-    x_test = np.expand_dims(x_test, axis=3) 
-    y_test = to_categorical(y_test, num_classes=10)
+    test_data = np.expand_dims(x_test, axis=3)
+    test_target = to_categorical(y_test, num_classes=10)
     while True:
-        yield x_test, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":y_test}
-test_dgen_obj = test_dgen() 
+        yield test_data, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":test_target}
+
+test_dgen_obj = test_dgen()
 
 # import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
     steps_per_epoch=50,
-    epochs=200,
+    epochs=5,
     validation_data = test_dgen_obj,
     validation_steps = 1,
     callbacks=[lrreduce]
 )
+
+print("Done. Validation accuracy over epochs...")
+print(np.round(history.history["val_preds_acc"], 3))
+import ipdb; ipdb.set_trace()
 
 print("storing history at.. root_folder/history.pkl")
 with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
     pickle.dump(history.history, f)
 with open(os.path.join(root_folder, "params.txt"), "wt") as f:
     f.write("preds_wt : {} | norms_wt: {} ".format(preds_wt, norms_wt))
-model.save_weights(os.path.join(root_folder, "weights.h5")) 
+model.save_weights(os.path.join(root_folder, "weights.h5"))
 
 # perform TSNE
 # (x_train, y_train), _ = mnist.load_data()
