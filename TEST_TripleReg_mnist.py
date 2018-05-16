@@ -13,8 +13,8 @@ from keras.utils import to_categorical
 from loss_layers import triplet_loss_batched_wrapper, wrapper_categorical_crossentropy
 from keras.losses import categorical_crossentropy
 from keras.optimizers import Adadelta
-import tensorflow as tf 
-import random as rn 
+import tensorflow as tf
+import random as rn
 
 import numpy as np
 import time
@@ -24,16 +24,16 @@ from sklearn.manifold import TSNE
 import os, sys, pickle
 
 #################################
-""" 
+"""
 SET SEED FOR reproducable RESULTS
 """
 os.environ["PYTHONHASHSEED"] = "0"
 np.random.seed(1234)
-rn.seed(1234) 
-session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-tf.set_random_seed(1234)
-sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
-K.set_session(sess)
+rn.seed(1234)
+# session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+# tf.set_random_seed(1234)
+# sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+# K.set_session(sess)
 ################################
 
 def nw_arch_mnist():
@@ -174,7 +174,7 @@ TRAIN MODEL
 """
 root_folder, norms_wt, preds_wt = sys.argv[1], sys.argv[2], sys.argv[3]
 norms_wt = float(norms_wt)
-preds_wt = float(preds_wt) 
+preds_wt = float(preds_wt)
 print("Parameters:")
 print("root: {} | norms_wt: {} | preds_wt: {}".format(root_folder, norms_wt, preds_wt))
 
@@ -195,16 +195,17 @@ dgen = batched_data_generator(batch_size=16)
 
 def test_dgen():
     _, (x_test, y_test) = mnist.load_data()
-    x_test = np.expand_dims(x_test, axis=3) 
+    x_test = np.expand_dims(x_test, axis=3)
     y_test = to_categorical(y_test, num_classes=10)
     while True:
         yield x_test, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":y_test}
-test_dgen_obj = test_dgen() 
+
+test_dgen_obj = test_dgen()
 
 # import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
-    steps_per_epoch=500,
+    steps_per_epoch=100,
     epochs=50,
     validation_data = test_dgen_obj,
     validation_steps = 1
@@ -215,6 +216,10 @@ with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
     pickle.dump(history.history, f)
 with open(os.path.join(root_folder, "params.txt"), "wt") as f:
     f.write("preds_wt : {} | norms_wt: {} ".format(preds_wt, norms_wt))
+
+print("Saving model...")
+model.save(os.path.join(root_folder, "MODEL_norms_wt_1.h5"))
+print("Done.")
 
 # perform TSNE
 # (x_train, y_train), _ = mnist.load_data()
