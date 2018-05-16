@@ -18,7 +18,7 @@ for folder in clean_files:
     with open(os.path.join("./", folder, "history.pkl"), "rb") as f:
         history_dict = pickle.load(f) 
     
-    assert "val_preds_acc" in history_dict.keys(), "val_preds_acc not available for ", folder
+    assert "val_preds_acc" in history_dict.keys(), "val_preds_acc not available "
     plt.plot(np.arange(50), history_dict["val_preds_acc"])
 plt.show() 
 
