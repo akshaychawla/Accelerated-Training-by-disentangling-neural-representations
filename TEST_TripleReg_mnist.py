@@ -5,6 +5,7 @@
 from __future__ import print_function
 from keras.callbacks import TensorBoard, ReduceLROnPlateau, Callback
 from keras.layers import Input, Conv2D, MaxPooling2D, Dropout, Flatten, Lambda, Dense
+from keras.layers import Activation
 from keras.models import Sequential, Model
 import keras.backend as K
 from keras import optimizers
@@ -55,8 +56,9 @@ def nw_arch_mnist():
     drop2 = Dropout(0.5)(dense)
     ## ...now, BRANCH!!!
     embed = Dense(EMBEDDING_UNITS, name='embeds')(drop2) ## embeddings for aux loss
-    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embed) ## normed embeddings
-    preds = Dense(num_classes, activation='softmax', name='preds')(drop2) ## standard loss
+    embed_act = Activation("relu")(embed)
+    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embed_act) ## normed embeddings
+    preds = Dense(num_classes, activation='softmax', name='preds')(embed_act) ## standard loss
 
     model = Model(inputs=inputs, outputs=[norms, preds])
     return model
@@ -148,7 +150,7 @@ def _test_generator():
     plt.show()
     print("\t--done--\n")
 
-_test_generator()
+# _test_generator()
 
 """
 Validation method
@@ -191,8 +193,8 @@ print("Parameters:")
 print("root: {} | norms_wt: {} | preds_wt: {}".format(root_folder, norms_wt, preds_wt))
 
 model = nw_arch_mnist()
-loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
-loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
+loss_triplet = triplet_loss_batched_wrapper(num_triplets=8)
+loss_xentropy = wrapper_categorical_crossentropy(num_triplets=8)
 
 sgd = optimizers.SGD(lr=0.01, momentum=0.9, decay=0.0005, nesterov=False)
 model.compile(
@@ -204,7 +206,7 @@ model.compile(
 
 lrreduce = ReduceLROnPlateau(monitor="val_preds_acc", factor=0.1, patience=4, verbose=1, min_lr=1e-05)
 
-dgen = batched_data_generator(batch_size=16)
+dgen = batched_data_generator(batch_size=8)
 
 def test_dgen():
     test_data = np.expand_dims(x_test, axis=3)
@@ -217,8 +219,8 @@ test_dgen_obj = test_dgen()
 # import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
-    steps_per_epoch=50,
-    epochs=5,
+    steps_per_epoch=20,
+    epochs=100,
     validation_data = test_dgen_obj,
     validation_steps = 1,
     callbacks=[lrreduce]
@@ -226,7 +228,7 @@ history = model.fit_generator(
 
 print("Done. Validation accuracy over epochs...")
 print(np.round(history.history["val_preds_acc"], 3))
-import ipdb; ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
 
 print("storing history at.. root_folder/history.pkl")
 with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
