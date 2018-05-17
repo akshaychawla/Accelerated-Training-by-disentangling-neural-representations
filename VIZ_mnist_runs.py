@@ -19,7 +19,7 @@ for folder in clean_files:
         history_dict = pickle.load(f) 
     
     assert "val_preds_acc" in history_dict.keys(), "val_preds_acc not available "
-    plt.plot(np.arange(50), history_dict["val_preds_acc"], label=parameters_str)
+    plt.plot(np.arange(20), history_dict["val_preds_acc"], label=parameters_str)
 plt.legend() 
 plt.show() 
 

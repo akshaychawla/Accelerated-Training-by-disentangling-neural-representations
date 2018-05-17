@@ -29,11 +29,11 @@ import os, sys, pickle
 """
 SET SEED FOR reproducable RESULTS
 """
-os.environ["PYTHONHASHSEED"] = "0"
-np.random.seed(1234)
-rn.seed(1234)
-# session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-tf.set_random_seed(1234)
+os.environ["PYTHONHASHSEED"] = "1000"
+np.random.seed(1000)
+rn.seed(1000)
+# # session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+tf.set_random_seed(1000)
 # sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
 # K.set_session(sess)
 ################################
@@ -220,7 +220,7 @@ test_dgen_obj = test_dgen()
 history = model.fit_generator(
     dgen,
     steps_per_epoch=20,
-    epochs=100,
+    epochs=20,
     validation_data = test_dgen_obj,
     validation_steps = 1,
     callbacks=[lrreduce]
