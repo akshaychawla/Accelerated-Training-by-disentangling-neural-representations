@@ -50,17 +50,20 @@ def wrapper_categorical_crossentropy(num_triplets):
     """
     select_anchors = lambda x: x[:num_triplets, :]
     select_negatives = lambda x: x[num_triplets*2 : num_triplets*3, :]
+    select_positives = lambda x: x[num_triplets : num_triplets*2, :] 
 
     def custom_cat_ce(y_true, y_pred):
         true_ancs = Lambda(select_anchors)(y_true)
         true_negs = Lambda(select_negatives)(y_true)
+        true_poss = Lambda(select_positives)(y_true)
 
         pred_ancs = Lambda(select_anchors)(y_pred)
         pred_negs = Lambda(select_negatives)(y_pred)
+        pred_poss = Lambda(select_positives)(y_pred) 
 
         return K.categorical_crossentropy(
-            concatenate([true_ancs, true_negs]),
-            concatenate([pred_ancs, pred_negs])
+            concatenate([true_ancs, true_negs, true_poss]),
+            concatenate([pred_ancs, pred_negs, pred_poss])
         )
 
     return custom_cat_ce
