@@ -5,6 +5,7 @@
 from __future__ import print_function
 from keras.callbacks import TensorBoard, ReduceLROnPlateau, Callback
 from keras.layers import Input, Conv2D, MaxPooling2D, Dropout, Flatten, Lambda, Dense
+from keras.layers import Activation
 from keras.models import Sequential, Model
 import keras.backend as K
 from keras import optimizers
@@ -21,17 +22,18 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
 import os, sys, pickle
 
 #################################
 """
 SET SEED FOR reproducable RESULTS
 """
-os.environ["PYTHONHASHSEED"] = "0"
-np.random.seed(1234)
-rn.seed(1234)
-# session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-# tf.set_random_seed(1234)
+os.environ["PYTHONHASHSEED"] = "1000"
+np.random.seed(1000)
+rn.seed(1000)
+# # session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+tf.set_random_seed(1000)
 # sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
 # K.set_session(sess)
 ################################
@@ -54,8 +56,9 @@ def nw_arch_mnist():
     drop2 = Dropout(0.5)(dense)
     ## ...now, BRANCH!!!
     embed = Dense(EMBEDDING_UNITS, name='embeds')(drop2) ## embeddings for aux loss
-    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embed) ## normed embeddings
-    preds = Dense(num_classes, activation='softmax', name='preds')(drop2) ## standard loss
+    embed_act = Activation("relu")(embed)
+    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embed_act) ## normed embeddings
+    preds = Dense(num_classes, activation='softmax', name='preds')(embed_act) ## standard loss
 
     model = Model(inputs=inputs, outputs=[norms, preds])
     return model
@@ -65,13 +68,26 @@ PREP DATA
 """
 EMBEDDING_UNITS = 64
 
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, y_train = shuffle(x_train, y_train)
+
+im_shape = (x_train.shape[1], x_train.shape[2])
+im_flatten = im_shape[0] * im_shape[1]
+
+stsc = StandardScaler()
+stsc.fit(x_train.reshape( (x_train.shape[0], im_flatten)) )
+
+def _preprocess_data(input_data):
+    bs = input_data.shape[0]
+    return stsc.transform(input_data.reshape((bs, im_flatten))).reshape((bs, im_shape[0], im_shape[1]))
+
+x_train = _preprocess_data(x_train)
+x_test = _preprocess_data(x_test)
+
 def triplet_generator():
     """
     Returns single data for both loss functions.
     """
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, y_train = shuffle(x_train, y_train)
-
     while True:
         anc_class = np.random.randint(0, 10)
         neg_class = None
@@ -142,8 +158,6 @@ Validation method
 class valid_callback(Callback):
 
     def __init__(self, top_k, num_samples):
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        x_test, y_test = shuffle(x_test, y_test)
         self.x_test = x_test
         self.y_test = y_test
         self.top_k = top_k
@@ -179,47 +193,49 @@ print("Parameters:")
 print("root: {} | norms_wt: {} | preds_wt: {}".format(root_folder, norms_wt, preds_wt))
 
 model = nw_arch_mnist()
-loss_triplet = triplet_loss_batched_wrapper(num_triplets=16)
-loss_xentropy = wrapper_categorical_crossentropy(num_triplets=16)
+loss_triplet = triplet_loss_batched_wrapper(num_triplets=8)
+loss_xentropy = wrapper_categorical_crossentropy(num_triplets=8)
 
+sgd = optimizers.SGD(lr=0.01, momentum=0.9, decay=0.0005, nesterov=False)
 model.compile(
-    optimizer = Adadelta(),
+    optimizer = sgd,
     loss = {"norms" : loss_triplet, "preds" : categorical_crossentropy},
     loss_weights = {"norms" : norms_wt, "preds" : preds_wt},
     metrics={"preds":"accuracy"}
 )
 
-lrreduce = ReduceLROnPlateau(monitor="loss", factor=0.1, patience=4, verbose=1, min_lr=1e-08)
+lrreduce = ReduceLROnPlateau(monitor="val_preds_acc", factor=0.1, patience=4, verbose=1, min_lr=1e-05)
 
-dgen = batched_data_generator(batch_size=16)
+dgen = batched_data_generator(batch_size=8)
 
 def test_dgen():
-    _, (x_test, y_test) = mnist.load_data()
-    x_test = np.expand_dims(x_test, axis=3)
-    y_test = to_categorical(y_test, num_classes=10)
+    test_data = np.expand_dims(x_test, axis=3)
+    test_target = to_categorical(y_test, num_classes=10)
     while True:
-        yield x_test, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":y_test}
+        yield test_data, {"norms":np.zeros((10000, EMBEDDING_UNITS)) , "preds":test_target}
 
 test_dgen_obj = test_dgen()
 
 # import ipdb; ipdb.set_trace()
 history = model.fit_generator(
     dgen,
-    steps_per_epoch=100,
-    epochs=50,
+    steps_per_epoch=20,
+    epochs=20,
     validation_data = test_dgen_obj,
-    validation_steps = 1
+    validation_steps = 1,
+    callbacks=[lrreduce]
 )
+
+print("Done. Validation accuracy over epochs...")
+print(np.round(history.history["val_preds_acc"], 3))
+# import ipdb; ipdb.set_trace()
 
 print("storing history at.. root_folder/history.pkl")
 with open(os.path.join(root_folder, "history.pkl"), "wb") as f:
     pickle.dump(history.history, f)
 with open(os.path.join(root_folder, "params.txt"), "wt") as f:
     f.write("preds_wt : {} | norms_wt: {} ".format(preds_wt, norms_wt))
-
-print("Saving model...")
-model.save(os.path.join(root_folder, "MODEL_norms_wt_1.h5"))
-print("Done.")
+model.save_weights(os.path.join(root_folder, "weights.h5"))
 
 # perform TSNE
 # (x_train, y_train), _ = mnist.load_data()
