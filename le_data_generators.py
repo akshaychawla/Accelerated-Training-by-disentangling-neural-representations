@@ -99,12 +99,11 @@ class dg_cifar10:
                 Y_pos.append(y_pos)
                 Y_neg.append(y_neg)
 
-            import ipdb; ipdb.set_trace()
-
             batch = np.vstack((L_anc, L_pos, L_neg))
             truth = np.vstack((Y_anc, Y_pos, Y_neg))
 
-            import ipdb; ipdb.set_trace()
+            flow = self.train_dgen.flow(batch, truth,
+                                 batch_size=self.batch_size, shuffle=False)
 
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
