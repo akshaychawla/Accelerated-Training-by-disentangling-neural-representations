@@ -92,7 +92,6 @@ else:
     )
 
 # Train
-import ipdb; ipdb.set_trace()
 history = model.fit_generator(
         train_triplet_generator,
         steps_per_epoch=c10dg.data_size // batch_size + 1,
