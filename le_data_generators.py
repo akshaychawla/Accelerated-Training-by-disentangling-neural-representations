@@ -1,5 +1,6 @@
 """Data generators. Lots of them. Or some of them. I don't care."""
 
+from __future__ import print_function
 import sys
 from keras.datasets import cifar10
 from keras.utils import to_categorical
@@ -102,8 +103,8 @@ class dg_cifar10:
             batch = np.vstack((L_anc, L_pos, L_neg))
             truth = np.vstack((Y_anc, Y_pos, Y_neg))
 
-            flow = self.train_dgen.flow(batch, truth,
-                                 batch_size=self.batch_size, shuffle=False)
+            batch = self.train_dgen.flow(batch, truth,
+                                 batch_size=self.batch_size, shuffle=False).next()
 
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
