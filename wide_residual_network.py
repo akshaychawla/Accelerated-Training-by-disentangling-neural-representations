@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, Add, Activation, Dropout, Flatten, Dense
+from keras.layers import Input, Add, Activation, Dropout, Flatten, Dense, Lambda
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
