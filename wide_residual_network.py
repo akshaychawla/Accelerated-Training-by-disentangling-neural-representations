@@ -3,7 +3,7 @@ from keras.layers import Input, Add, Activation, Dropout, Flatten, Dense
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
-
+import sys
 
 def initial_conv(input):
     x = Convolution2D(16, (3, 3), padding='same', kernel_initializer='he_normal',
@@ -96,7 +96,7 @@ def conv3_block(input, k=1, dropout=0.0):
     m = Add()([init, x])
     return m
 
-def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.0, verbose=1):
+def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.0, verbose=1, mode):
     """
     Creates a Wide Residual Network with specified parameters
 
@@ -120,7 +120,7 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
 
     x = expand_conv(x, 16, k)
     nb_conv += 2
-    
+
     for i in range(N - 1):
         x = conv1_block(x, k, dropout)
         nb_conv += 2
@@ -130,7 +130,7 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
 
     x = expand_conv(x, 32, k, strides=(2, 2))
     nb_conv += 2
-    
+
     for i in range(N - 1):
         x = conv2_block(x, k, dropout)
         nb_conv += 2
@@ -140,22 +140,34 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
 
     x = expand_conv(x, 64, k, strides=(2, 2))
     nb_conv += 2
-    
+
     for i in range(N - 1):
         x = conv3_block(x, k, dropout)
         nb_conv += 2
-        
+
     x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
     x = Activation('relu')(x)
-    
+
     x = AveragePooling2D((8, 8))(x)
     x = Flatten()(x)
 
-    x = Dense(nb_classes, activation='softmax')(x)
+    if mode == "triplet":
+        EMBEDDING_UNITS = 300
+        embeds = Dense(EMBEDDING_UNITS, name="embeds")(x) ## embeddings for aux loss
+        norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embeds) ## normed embeds
+        preds = Dense(num_classes, activation='softmax', name='preds')(norms) ## standard loss
 
-    model = Model(ip, x)
+        model = Model(inputs=ip, outputs=[norms, preds])
 
-    if verbose: print("Wide Residual Network-%d-%d created." % (nb_conv, k))
+    elif mode == "normal":
+        x = Dense(nb_classes, activation='softmax')(x)
+        model = Model(ip, x)
+
+    else:
+        print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
+        sys.exit()
+
+    if verbose: print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
     return model
 
 if __name__ == "__main__":
@@ -163,9 +175,16 @@ if __name__ == "__main__":
     from keras.layers import Input
     from keras.models import Model
 
+    # mode
+    mode = sys.argv[1].lower()
+    print("\n\n\t\tTRAINING MODE: %s\n\n"%mode)
+    if (mode != "triplet") or (mode != "normal"):
+        print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
+        sys.exit()
+
     init = (32, 32, 3)
 
-    wrn_28_10 = create_wide_residual_network(init, nb_classes=10, N=2, k=2, dropout=0.0)
+    wrn_28_10 = create_wide_residual_network(init, nb_classes=10, N=2, k=2, dropout=0.0, mode=mode)
 
     wrn_28_10.summary()
 
