@@ -7,6 +7,7 @@ from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, Te
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
+from loss_layers import triplet_loss_batched_wrapper
 
 # mode
 mode = sys.argv[1].lower()
@@ -82,7 +83,18 @@ model = wrn.create_wide_residual_network(
         )
 print(model.summary())
 sgd = SGD(lr=0.1, momentum=0.9, nesterov=True)
-model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
+
+# Loss
+if mode == "normal":
+    model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
+else:
+    loss_triplet = triplet_loss_batched_wrapper(num_triplets=8)
+    model.compile(
+        optimizer = sgd,
+        loss = {"norms" : loss_triplet, "preds" : "categorical_crossentropy"},
+        loss_weights = {"norms" : 2.0, "preds" : 1.0},
+        metrics = {"preds":"accuracy"}
+    )
 
 # Train
 history = model.fit_generator(
