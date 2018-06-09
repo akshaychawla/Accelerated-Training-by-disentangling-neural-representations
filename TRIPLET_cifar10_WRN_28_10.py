@@ -84,16 +84,16 @@ else:
     model.compile(
         optimizer = sgd,
         loss = {"norms" : loss_triplet, "preds" : "categorical_crossentropy"},
-        loss_weights = {"norms" : 2.0, "preds" : 1.0},
+        loss_weights = {"norms" : 1.0, "preds" : 1.0},
         metrics = {"preds":"accuracy"}
     )
 
 # Train
+import ipdb; ipdb.set_trace()
 history = model.fit_generator(
         train_triplet_generator,
-        steps_per_epoch=train_triplet_generator.data_size // batch_size + 1,
+        steps_per_epoch=c10dg.data_size // batch_size + 1,
         epochs=epochs,
-        callbacks=[lrschedule, tboard, checkpoint]
     )
 with open(os.path.join(root_folder, "history.pkl"),"wb") as f:
     pickle.dump(history.history, f)

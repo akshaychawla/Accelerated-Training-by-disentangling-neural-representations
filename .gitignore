@@ -8,6 +8,7 @@ __pycache__/
 
 # RUN - checkpoints + logs 
 RUN*
+TRIP*
 
 *.pyc
 results/*

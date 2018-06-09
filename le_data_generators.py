@@ -104,8 +104,7 @@ class dg_cifar10:
             batch = np.vstack((L_anc, L_pos, L_neg))
             truth = np.vstack((Y_anc, Y_pos, Y_neg))
 
-            batch = self.train_dgen.flow(batch, truth,
-                                 batch_size=self.batch_size, shuffle=False).next()
+            batch = self.train_dgen.flow(batch, batch_size=self.batch_size, shuffle=False).next()
 
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
