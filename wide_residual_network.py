@@ -96,7 +96,8 @@ def conv3_block(input, k=1, dropout=0.0):
     m = Add()([init, x])
     return m
 
-def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.0, verbose=1, mode):
+def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.0,
+                                 verbose=1, mode="normal"):
     """
     Creates a Wide Residual Network with specified parameters
 
