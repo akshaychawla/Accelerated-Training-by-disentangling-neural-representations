@@ -35,12 +35,13 @@ if __name__ == "__main__":
             )
     
     # load wts 
+    model.compile(loss="categorical_crossentropy", optimizer="sgd", metrics=["accuracy"])
     if len(sys.argv) == 1:
         print("WARNING: No checkpoint specified!, using random weights")
     else: 
         print("Loading weights from location: ", sys.argv[1])
         wts_location = sys.argv[1] 
-        model.load_weights(wts_location, by_name=True)  #Load weights 
+        model.load_weights(wts_location)  #Load weights 
 
     
     # import ipdb; ipdb.set_trace()
@@ -48,7 +49,17 @@ if __name__ == "__main__":
     (trainX, trainY), (testX, testY) = cifar10.load_data()
     trainY = to_categorical(trainY)
     testY = to_categorical(testY)
-    # Test dataset 
+
+    # Data generators
+    train_dgen = ImageDataGenerator(
+                    featurewise_center=True,
+                    featurewise_std_normalization=True,
+                    horizontal_flip=True, 
+                    width_shift_range=4, # mimick padding=4 + randomcrop 
+                    height_shift_range=4, 
+                    fill_mode="nearest"
+                )
+    train_dgen.fit(trainX) 
     test_dgen = ImageDataGenerator(
                     featurewise_center=True, 
                     featurewise_std_normalization=True
@@ -56,6 +67,7 @@ if __name__ == "__main__":
     test_dgen.fit(trainX) # IMP! mean,std calculated on training data
 
     # FGSM parameters 
+    import ipdb; ipdb.set_trace()
     eta = 0.007
     if len(sys.argv) == 1:
         print("Setting default value of eta...")
@@ -63,24 +75,23 @@ if __name__ == "__main__":
         eta = float(sys.argv[2])
 
     # Performance before attack 
-    preds_pre_attack = model.predict_generator(
-                            generator=test_dgen.flow(testX, testY, batch_size=50),
-                            steps=len(testX)/50,
-                            verbose=1
+    performance_pre_attack = model.evaluate_generator(
+                            generator = test_dgen.flow(testX, testY, batch_size=50, shuffle=False),
+                            steps = len(testX)/50, 
+                            verbose=1,
+                            workers=1,
+                            use_multiprocessing=False
                         )
-    print("Performance before attack is: ", 
-            np.count_nonzero(np.argmax(preds_pre_attack,axis=1) == np.argmax(testY,axis=1)),
-            " correct out of 10000 test samples"
-        )
+    print("Accuracy before attack is: ", performance_pre_attack[1]) 
 
     ### Perform attack 
     # Calculate grad w.r.t input for all test images 
     print("Calculating gradient w.r.t input..")
     calc_grads = create_gradient_function(model, 0, 0)
     grads_X_test = [] 
-    for batch_idx in tqdm(range(0, len(testX), 50)):
-        x_batch = testX[batch_idx:batch_idx+50]
-        y_batch = testY[batch_idx:batch_idx+50] 
+    temp_testdgen = test_dgen.flow(testX, testY, batch_size=50, shuffle=False)
+    for batch_idx in tqdm(range(len(testX)//50)):
+        x_batch, y_batch = next(temp_testdgen)
         _, grads_batch = calc_grads([x_batch, y_batch]) 
         grads_X_test.append(grads_batch)
     grads_X_test = np.concatenate(grads_X_test, axis=0) 
@@ -90,23 +101,11 @@ if __name__ == "__main__":
     attacked_testX = testX + eta*np.sign(grads_X_test)
 
     # Performance after attack 
-    preds_post_attack = model.predict_generator(
+    performance_post_attack = model.evaluate_generator(
                             generator=test_dgen.flow(attacked_testX, testY, batch_size=50),
                             steps=len(attacked_testX)/50,
                             verbose=1
                         )
-    print("Performance after attack is: ", 
-            np.count_nonzero(np.argmax(preds_post_attack,axis=1) == np.argmax(testY,axis=1)),
-            " correct out of 10000 test samples"
-        )
-
-
-    # x_val = np.random.randn(1,32,32,3)
-    # y_val = np.zeros((1,10))
-
-    # loss_val, grad_val = get_gradients_function(inputs=(x_val, y_val))
-    # # Now, we have the grads w.r.t input. 
-
-    # import ipdb; ipdb.set_trace()
+    print("Accuracy after attack is: ", performance_post_attack[1])
 
 
