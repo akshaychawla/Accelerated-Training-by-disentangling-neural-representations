@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # mode
     mode = sys.argv[1].lower()
     print("\n\n\t\tTRAINING MODE: %s\n\n"%mode)
-    if (mode != "triplet") or (mode != "normal"):
+    if (mode != "triplet") and (mode != "normal"):
         print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
         sys.exit()
 
