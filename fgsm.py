@@ -67,13 +67,15 @@ if __name__ == "__main__":
     test_dgen.fit(trainX) # IMP! mean,std calculated on training data
 
     # Generate normed version of dataset 
+    print("Generating normed version of test set..")
     testX_normed = [] 
     temp_testdgen = test_dgen.flow(testX, testY, batch_size=50, shuffle=False)
-    for _ in range(len(testX)/50):
+    for _ in range(len(testX)//50):
         x_batch, y_batch = next(temp_testdgen)
         testX_normed.append(x_batch)
     testX_normed = np.concatenate(testX_normed, axis=0)
     del temp_testdgen, x_batch, y_batch
+    print("Done")
 
     # FGSM parameters
     # import ipdb; ipdb.set_trace()
