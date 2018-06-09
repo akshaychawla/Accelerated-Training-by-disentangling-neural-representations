@@ -101,7 +101,7 @@ if __name__ == "__main__":
     grads_X_test = []
     for batch_idx in tqdm(range(0, len(testX_normed), 50)):
         x_batch = testX_normed[batch_idx: batch_idx+50]
-        y_batch = testY[batch_idx: batch_idx:50]
+        y_batch = testY[batch_idx: batch_idx+50]
         _, grads_batch = calc_grads([x_batch, y_batch])
         grads_X_test.append(grads_batch)
     grads_X_test = np.concatenate(grads_X_test, axis=0)
