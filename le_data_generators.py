@@ -1,6 +1,8 @@
 """Data generators. Lots of them. Or some of them. I don't care."""
 
 from __future__ import print_function
+from __future__ import division
+
 import sys
 from keras.datasets import cifar10
 from keras.utils import to_categorical
@@ -14,7 +16,7 @@ class dg_cifar10:
         self.mode = mode
         self.batch_size = batch_size
         self.embedding_units = embedding_units
-        self.num_triplets = self.batch_size / 3
+        self.num_triplets = self.batch_size // 3
 
         ## loading cifar10 data
         (self.x_train, self.y_train), (self.x_test, self.y_test) = cifar10.load_data()
