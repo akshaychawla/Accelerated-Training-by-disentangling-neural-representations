@@ -66,9 +66,8 @@ if __name__ == "__main__":
                 )
     test_dgen.fit(trainX) # IMP! mean,std calculated on training data
 
-    import ipdb; ipdb.set_trace()
-
     # FGSM parameters 
+    import ipdb; ipdb.set_trace()
     eta = 0.007
     if len(sys.argv) == 1:
         print("Setting default value of eta...")
@@ -90,9 +89,9 @@ if __name__ == "__main__":
     print("Calculating gradient w.r.t input..")
     calc_grads = create_gradient_function(model, 0, 0)
     grads_X_test = [] 
-    for batch_idx in tqdm(range(0, len(testX), 50)):
-        x_batch = testX[batch_idx:batch_idx+50]
-        y_batch = testY[batch_idx:batch_idx+50] 
+    temp_testdgen = test_dgen.flow(testX, testY, batch_size=50, shuffle=False)
+    for batch_idx in tqdm(range(len(testX)//50)):
+        x_batch, y_batch = next(temp_testdgen)
         _, grads_batch = calc_grads([x_batch, y_batch]) 
         grads_X_test.append(grads_batch)
     grads_X_test = np.concatenate(grads_X_test, axis=0) 
