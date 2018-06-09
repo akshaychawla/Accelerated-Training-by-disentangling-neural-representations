@@ -153,10 +153,17 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
     x = Flatten()(x)
 
     if mode == "triplet":
+        ## x -> embeds -> norms
+        ## and
+        ## x -> preds
+        ## finaly
+        ## outputs=[norms, preds]
         EMBEDDING_UNITS = 300
+
         embeds = Dense(EMBEDDING_UNITS, name="embeds")(x) ## embeddings for aux loss
         norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embeds) ## normed embeds
-        preds = Dense(num_classes, activation='softmax', name='preds')(norms) ## standard loss
+
+        preds = Dense(nb_classes, activation='softmax', name='preds')(x) ## standard output
 
         model = Model(inputs=ip, outputs=[norms, preds])
 
