@@ -84,6 +84,7 @@ if __name__ == "__main__":
         print("Setting default value of eta...")
     else:
         eta = float(sys.argv[2])
+        print("Using eta = ", eta)
 
     # Performance before attack
     performance_pre_attack = model.evaluate(
