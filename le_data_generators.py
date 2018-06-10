@@ -173,11 +173,49 @@ class dg_cifar10:
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
 
-if __name__ == '__main__':
+def test_data_generators():
+    """
+    Utility to test train + test data generators 
+    """
+
+    # Test train data gen 
     dg = dg_cifar10(129, 300, "triplet")
-    triplet_generator = dg.batched_triplet_generator()
-    import ipdb; ipdb.set_trace()
-    data = triplet_generator.next()
+    TRAIN_dgen = dg.TRAIN_batched_triplet_generator() 
+    x,gt = next(TRAIN_dgen)
+    assert x.shape == (129,32,32,3)
+    assert gt["preds"].shape == (129,10)
+    assert gt["norms"].shape == (129,300)
+
+    # Test TEST data gen 
+    TEST_dgen = dg.TEST_batched_triplet_generator() 
+    x,gt = next(TEST_dgen)
+    assert x.shape == (129,32,32,3)
+    assert gt["preds"].shape == (129,10)
+    assert gt["norms"].shape == (129,300)
+
+    # Check speed 
+    import time 
+    time_per_call = [] 
+    start_time = time.time() 
+    for _ in range(30):
+        data_tuple = next(TEST_dgen)
+        stop_time = time.time()
+        time_per_call.append(stop_time - start_time)
+        start_time = stop_time
+    print("Max:{:.3f} | Min:{:.3f} | Mean:{:.3f} |".format(
+            max(time_per_call), min(time_per_call), 
+            sum(time_per_call) / len(time_per_call))
+        )
+
+    print("..Basic tests passed.")
+
+
+if __name__ == '__main__':
+    test_data_generators()
+    # dg = dg_cifar10(129, 300, "triplet")
+    # triplet_generator = dg.TRAIN_batched_triplet_generator()
+    # import ipdb; ipdb.set_trace()
+    # data = triplet_generator.next()
 
     print("YEAH")
     import ipdb; ipdb.set_trace()
