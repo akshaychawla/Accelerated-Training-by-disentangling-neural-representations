@@ -23,7 +23,7 @@ class dg_cifar10:
         (self.x_train, self.y_train) = shuffle(self.x_train, self.y_train)
         self.data_size = self.x_train.shape[0]
 
-        ## create the Keras ImageDataGenerator
+        ## create the Keras ImageDataGenerator (Train+Test)
         self.train_dgen = ImageDataGenerator(
                         featurewise_center=True,
                         featurewise_std_normalization=True,
@@ -33,6 +33,11 @@ class dg_cifar10:
                         fill_mode="nearest"
                     )
         self.train_dgen.fit(self.x_train)
+        self.test_dgen = ImageDataGenerator(
+                        featurewise_center=True,
+                        featurewise_std_normalization=True
+                    )
+        self.test_dgen.fit(self.x_train)
 
         if mode == "triplet":
             if embedding_units is None:
@@ -53,7 +58,7 @@ class dg_cifar10:
             sys.exit()
 
 
-    def single_triplet_generator(self):
+    def TRAIN_single_triplet_generator(self):
         """
         Generates a single training pair for both loss functions.
         """
@@ -81,14 +86,42 @@ class dg_cifar10:
 
             yield (anc, pos, neg), (y_anc, y_pos, y_neg)
 
+    def TEST_single_triplet_generator(self):
+        """
+        Generates a single test pair for both loss functions.
+        """
+        while True:
+            anc_class = np.random.randint(0, 10)
+            neg_class = None
+            while (neg_class is None) or (neg_class == anc_class):
+                neg_class = np.random.randint(0, 10)
+            # checks
+            assert neg_class != anc_class
 
-    def batched_triplet_generator(self):
+            idx_anchors = np.argwhere(self.y_test==anc_class)[:, 0]
+            anchor_xs = self.x_test[idx_anchors]
+            anchor_ys = self.y_test[idx_anchors]
+            _args = np.random.choice(anchor_xs.shape[0], size=2, replace=False)
+            anc, pos = anchor_xs[_args]
+            y_anc, y_pos = to_categorical(anchor_ys[_args], num_classes=10)
+
+            idx_negs = np.argwhere(self.y_test==neg_class)[:, 0]
+            neg_xs = self.x_test[idx_negs]
+            neg_ys = self.y_test[idx_negs]
+            _narg = np.random.choice(neg_xs.shape[0], size=1)[0]
+            neg = neg_xs[_narg]
+            y_neg = to_categorical(neg_ys[_narg], num_classes=10)[0]
+
+            yield (anc, pos, neg), (y_anc, y_pos, y_neg)
+
+
+    def TRAIN_batched_triplet_generator(self):
         """
         Generates a single batch for both loss functions.
         Then passes the data through the ImageDataGenerator.
         Because Keras.
         """
-        tgen = self.single_triplet_generator()
+        tgen = self.TRAIN_single_triplet_generator()
         while True:
             L_anc, L_pos, L_neg = [], [], []
             Y_anc, Y_pos, Y_neg = [], [], []
@@ -111,6 +144,34 @@ class dg_cifar10:
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
 
+    def TEST_batched_triplet_generator(self):
+        """
+        Generates a single batch for both loss functions.
+        Then passes the data through the ImageDataGenerator.
+        Because Keras.
+        """
+        tgen = self.TEST_single_triplet_generator()
+        while True:
+            L_anc, L_pos, L_neg = [], [], []
+            Y_anc, Y_pos, Y_neg = [], [], []
+
+            for _ in range(self.num_triplets):
+                (anc, pos, neg), (y_anc, y_pos, y_neg) = next(tgen)
+                L_anc.append(anc)
+                L_pos.append(pos)
+                L_neg.append(neg)
+
+                Y_anc.append(y_anc)
+                Y_pos.append(y_pos)
+                Y_neg.append(y_neg)
+
+            batch = np.vstack((L_anc, L_pos, L_neg))
+            truth = np.vstack((Y_anc, Y_pos, Y_neg))
+
+            batch = self.test_dgen.flow(batch, batch_size=self.batch_size, shuffle=False).next()
+
+            yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
+                           "preds":truth}
 
 if __name__ == '__main__':
     dg = dg_cifar10(129, 300, "triplet")
