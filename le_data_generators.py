@@ -22,6 +22,7 @@ class dg_cifar10:
         (self.x_train, self.y_train), (self.x_test, self.y_test) = cifar10.load_data()
         (self.x_train, self.y_train) = shuffle(self.x_train, self.y_train)
         self.data_size = self.x_train.shape[0]
+        self.test_size = self.x_test.shape[0]
 
         ## create the Keras ImageDataGenerator (Train+Test)
         self.train_dgen = ImageDataGenerator(
