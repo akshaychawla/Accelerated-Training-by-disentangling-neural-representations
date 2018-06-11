@@ -86,34 +86,6 @@ class dg_cifar10:
 
             yield (anc, pos, neg), (y_anc, y_pos, y_neg)
 
-    def TEST_single_triplet_generator(self):
-        """
-        Generates a single test pair for both loss functions.
-        """
-        while True:
-            anc_class = np.random.randint(0, 10)
-            neg_class = None
-            while (neg_class is None) or (neg_class == anc_class):
-                neg_class = np.random.randint(0, 10)
-            # checks
-            assert neg_class != anc_class
-
-            idx_anchors = np.argwhere(self.y_test==anc_class)[:, 0]
-            anchor_xs = self.x_test[idx_anchors]
-            anchor_ys = self.y_test[idx_anchors]
-            _args = np.random.choice(anchor_xs.shape[0], size=2, replace=False)
-            anc, pos = anchor_xs[_args]
-            y_anc, y_pos = to_categorical(anchor_ys[_args], num_classes=10)
-
-            idx_negs = np.argwhere(self.y_test==neg_class)[:, 0]
-            neg_xs = self.x_test[idx_negs]
-            neg_ys = self.y_test[idx_negs]
-            _narg = np.random.choice(neg_xs.shape[0], size=1)[0]
-            neg = neg_xs[_narg]
-            y_neg = to_categorical(neg_ys[_narg], num_classes=10)[0]
-
-            yield (anc, pos, neg), (y_anc, y_pos, y_neg)
-
 
     def TRAIN_batched_triplet_generator(self):
         """
@@ -144,66 +116,49 @@ class dg_cifar10:
             yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
 
-    def TEST_batched_triplet_generator(self):
+    def TEST_batched_triplet_generator(self, test_bs=100):
         """
-        Generates a single batch for both loss functions.
-        Then passes the data through the ImageDataGenerator.
-        Because Keras.
+        Only need to evaluate on preds.
         """
-        tgen = self.TEST_single_triplet_generator()
+        self.y_test = to_categorical(self.y_test, num_classes=10)
+        self.test_bs = test_bs
+        flowing_data = self.test_dgen.flow(self.x_test, self.y_test, batch_size=test_bs, shuffle=False)
         while True:
-            L_anc, L_pos, L_neg = [], [], []
-            Y_anc, Y_pos, Y_neg = [], [], []
-
-            for _ in range(self.num_triplets):
-                (anc, pos, neg), (y_anc, y_pos, y_neg) = next(tgen)
-                L_anc.append(anc)
-                L_pos.append(pos)
-                L_neg.append(neg)
-
-                Y_anc.append(y_anc)
-                Y_pos.append(y_pos)
-                Y_neg.append(y_neg)
-
-            batch = np.vstack((L_anc, L_pos, L_neg))
-            truth = np.vstack((Y_anc, Y_pos, Y_neg))
-
-            batch = self.test_dgen.flow(batch, batch_size=self.batch_size, shuffle=False).next()
-
-            yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
+            batch, truth = flowing_data.next()
+            yield  batch, {"norms":np.zeros((test_bs, self.embedding_units)),
                            "preds":truth}
 
 def test_data_generators():
     """
-    Utility to test train + test data generators 
+    Utility to test train + test data generators
     """
 
-    # Test train data gen 
+    # Test train data gen
     dg = dg_cifar10(129, 300, "triplet")
-    TRAIN_dgen = dg.TRAIN_batched_triplet_generator() 
+    TRAIN_dgen = dg.TRAIN_batched_triplet_generator()
     x,gt = next(TRAIN_dgen)
     assert x.shape == (129,32,32,3)
     assert gt["preds"].shape == (129,10)
     assert gt["norms"].shape == (129,300)
 
-    # Test TEST data gen 
-    TEST_dgen = dg.TEST_batched_triplet_generator() 
+    # Test TEST data gen
+    TEST_dgen = dg.TEST_batched_triplet_generator(test_bs=50)
     x,gt = next(TEST_dgen)
-    assert x.shape == (129,32,32,3)
-    assert gt["preds"].shape == (129,10)
-    assert gt["norms"].shape == (129,300)
+    assert x.shape == (50,32,32,3)
+    assert gt["preds"].shape == (50,10)
+    assert gt["norms"].shape == (50,300)
 
-    # Check speed 
-    import time 
-    time_per_call = [] 
-    start_time = time.time() 
+    # Check speed
+    import time
+    time_per_call = []
+    start_time = time.time()
     for _ in range(30):
         data_tuple = next(TEST_dgen)
         stop_time = time.time()
         time_per_call.append(stop_time - start_time)
         start_time = stop_time
     print("Max:{:.3f} | Min:{:.3f} | Mean:{:.3f} |".format(
-            max(time_per_call), min(time_per_call), 
+            max(time_per_call), min(time_per_call),
             sum(time_per_call) / len(time_per_call))
         )
 
