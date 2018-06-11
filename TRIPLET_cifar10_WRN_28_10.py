@@ -28,10 +28,11 @@ else:
 
 # hyperparameters
 batch_size = 129
-epochs   = 200
+epochs  = 200
 img_rows, img_cols = 32, 32
 weight_decay = 0.0005
 embedding_units = 300
+test_bs = 129
 
 # Logs + checkpoints directory
 os.makedirs(root_folder)
@@ -46,7 +47,8 @@ testY = to_categorical(testY)
 
 # Data generators
 c10dg = dg_cifar10(batch_size, embedding_units, "triplet")
-train_triplet_generator = c10dg.batched_triplet_generator()
+train_triplet_generator = c10dg.TRAIN_batched_triplet_generator()
+test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 
 # Callbacks
 def lr_scheduler_fxn(epoch):
@@ -83,7 +85,7 @@ sgd = SGD(lr=0.1, momentum=0.9, nesterov=True)
 if mode == "normal":
     model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
 else:
-    loss_triplet = triplet_loss_batched_wrapper(num_triplets=8)
+    loss_triplet = triplet_loss_batched_wrapper(num_triplets=batch_size//3)
     model.compile(
         optimizer = sgd,
         loss = {"norms" : loss_triplet, "preds" : "categorical_crossentropy"},
@@ -93,10 +95,15 @@ else:
 
 # Train
 history = model.fit_generator(
-        train_triplet_generator,
+        generator=train_triplet_generator,
         steps_per_epoch=c10dg.data_size // batch_size + 1,
         epochs=epochs,
+        validation_data=test_triplet_generator,
+        validation_steps=c10dg.test_size // test_bs + 1,
+        callbacks=[lrschedule, tboard, checkpoint]
     )
+
+# History
 with open(os.path.join(root_folder, "history.pkl"),"wb") as f:
     pickle.dump(history.history, f)
 print("stored history to disk at ", os.path.join(root_folder, "history.pkl"))
