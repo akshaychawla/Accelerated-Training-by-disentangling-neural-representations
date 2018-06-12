@@ -121,14 +121,18 @@ class dg_cifar10:
         """
         Only need to evaluate on preds.
         """
-        import ipdb; ipdb.set_trace()
         self.y_test = to_categorical(self.y_test, num_classes=10)
         self.test_bs = test_bs
+        dummy_norms = np.zeros((test_bs, self.embedding_units))
+
         flowing_data = self.test_dgen.flow(self.x_test, self.y_test, batch_size=test_bs, shuffle=False)
+
         while True:
             batch, truth = flowing_data.next()
-            yield  batch, {"norms":np.zeros((test_bs, self.embedding_units)),
-                           "preds":truth}
+            if batch.shape[0] == test_bs:
+                yield batch, {"norms":dummy_norms, "preds":truth}
+            else:
+                yield batch, {"norms":np.zeros((batch.shape[0], self.embedding_units)), "preds":truth}
 
 def test_data_generators():
     """
