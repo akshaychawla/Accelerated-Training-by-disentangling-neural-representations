@@ -23,6 +23,7 @@ class dg_cifar10:
         (self.x_train, self.y_train) = shuffle(self.x_train, self.y_train)
         self.data_size = self.x_train.shape[0]
         self.test_size = self.x_test.shape[0]
+        self.y_test = to_categorical(self.y_test, num_classes=10)
 
         ## create the Keras ImageDataGenerator (Train+Test)
         self.train_dgen = ImageDataGenerator(
@@ -121,7 +122,6 @@ class dg_cifar10:
         """
         Only need to evaluate on preds.
         """
-        self.y_test = to_categorical(self.y_test, num_classes=10)
         self.test_bs = test_bs
         dummy_norms = np.zeros((test_bs, self.embedding_units))
 
