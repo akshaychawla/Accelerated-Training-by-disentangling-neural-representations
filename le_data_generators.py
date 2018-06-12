@@ -25,9 +25,10 @@ class dg_cifar10:
         self.test_size = self.x_test.shape[0]
 
         ## change test data to be divisible by 129
+        import ipdb; ipdb.set_trace()
         self.x_test = np.vstack((self.x_test, self.x_test[:62]))
         self.y_test = np.hstack((self.y_test, self.y_test[:62]))
-        
+
         self.y_test = to_categorical(self.y_test, num_classes=10)
 
         ## create the Keras ImageDataGenerator (Train+Test)
