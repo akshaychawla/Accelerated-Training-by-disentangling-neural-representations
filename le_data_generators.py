@@ -23,6 +23,11 @@ class dg_cifar10:
         (self.x_train, self.y_train) = shuffle(self.x_train, self.y_train)
         self.data_size = self.x_train.shape[0]
         self.test_size = self.x_test.shape[0]
+
+        ## change test data to be divisible by 129
+        self.x_test = np.vstack((self.x_test, self.x_test[:62]))
+        self.y_test = np.hstack((self.y_test, self.y_test[:62]))
+        
         self.y_test = to_categorical(self.y_test, num_classes=10)
 
         ## create the Keras ImageDataGenerator (Train+Test)
@@ -129,6 +134,7 @@ class dg_cifar10:
 
         while True:
             batch, truth = flowing_data.next()
+            print(flowing_data.total_batches_seen, batch.shape, truth.shape)
             if batch.shape[0] == test_bs:
                 yield batch, {"norms":dummy_norms, "preds":truth}
             else:
