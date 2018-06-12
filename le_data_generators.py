@@ -121,6 +121,7 @@ class dg_cifar10:
         """
         Only need to evaluate on preds.
         """
+        import ipdb; ipdb.set_trace()
         self.y_test = to_categorical(self.y_test, num_classes=10)
         self.test_bs = test_bs
         flowing_data = self.test_dgen.flow(self.x_test, self.y_test, batch_size=test_bs, shuffle=False)
