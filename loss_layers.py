@@ -17,19 +17,19 @@ def triplet_loss(y_true, y_pred):
     return loss
 
 
-def triplet_loss_batched_wrapper(num_triplets):
+def triplet_loss_batched_wrapper(num_triplets, alpha=0.1):
     """
     num_triplets is the number of triplets that will be given by the
     network output.
     i.e the network output y_pred will be of shape (num_triplets*3, embedding_units)
     Using a Closure type approach
     """
+    print("\ntriplet loss alpha:", alpha, "\n")
     def triplet_loss_batched(y_true, y_pred):
         """
         y_true : FAKE
         y_pred : (num_triplets*3, embedding_units) matrix
         """
-        alpha = 0.1
         anchors = y_pred[0: num_triplets, :]
         positives = y_pred[num_triplets: num_triplets*2, :]
         negatives = y_pred[num_triplets*2: num_triplets*3, :]
@@ -52,7 +52,7 @@ def wrapper_categorical_crossentropy(num_triplets):
     """
     select_anchors = lambda x: x[:num_triplets, :]
     select_negatives = lambda x: x[num_triplets*2 : num_triplets*3, :]
-    select_positives = lambda x: x[num_triplets : num_triplets*2, :] 
+    select_positives = lambda x: x[num_triplets : num_triplets*2, :]
 
     def custom_cat_ce(y_true, y_pred):
         true_ancs = Lambda(select_anchors)(y_true)
@@ -61,7 +61,7 @@ def wrapper_categorical_crossentropy(num_triplets):
 
         pred_ancs = Lambda(select_anchors)(y_pred)
         pred_negs = Lambda(select_negatives)(y_pred)
-        pred_poss = Lambda(select_positives)(y_pred) 
+        pred_poss = Lambda(select_positives)(y_pred)
 
         return K.categorical_crossentropy(
             concatenate([true_ancs, true_negs, true_poss]),
