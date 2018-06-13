@@ -21,11 +21,13 @@ class dg_cifar10:
         ## loading cifar10 data
         (self.x_train, self.y_train), (self.x_test, self.y_test) = cifar10.load_data()
         (self.x_train, self.y_train) = shuffle(self.x_train, self.y_train)
+        (self.x_test, self.y_test) = shuffle(self.x_test, self.y_test)
         self.data_size = self.x_train.shape[0]
         self.test_size = self.x_test.shape[0]
+        print("\ntraining data size:", self.data_size)
+        print("testing data size:", self.test_size, "\n")
 
         ## change test data to be divisible by 129
-        import ipdb; ipdb.set_trace()
         self.x_test = np.vstack((self.x_test, self.x_test[:62]))
         self.y_test = np.vstack((self.y_test, self.y_test[:62]))
 
