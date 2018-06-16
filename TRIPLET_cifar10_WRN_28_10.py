@@ -14,6 +14,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
 from loss_layers import triplet_loss_batched_wrapper
 from le_data_generators import dg_cifar10
+from fgsm_callback import fgsm_callback
 
 # mode
 mode = sys.argv[1].lower()
@@ -69,6 +70,7 @@ checkpoint = ModelCheckpoint(
                 verbose=True,
                 save_weights_only=True
             )
+fgsm_cb = fgsm_callback() 
 
 # Network
 model = wrn.create_wide_residual_network(
@@ -100,7 +102,7 @@ history = model.fit_generator(
         epochs=epochs,
         validation_data=test_triplet_generator,
         validation_steps=c10dg.test_size // test_bs + 1,
-        callbacks=[lrschedule, tboard, checkpoint]
+        callbacks=[lrschedule, tboard, checkpoint, fgsm_cb]
     )
 
 # History
