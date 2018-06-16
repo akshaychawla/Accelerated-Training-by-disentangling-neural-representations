@@ -34,7 +34,7 @@ else:
     sys.exit()
 
 # hyperparameters
-batch_size = 30
+batch_size = 129
 epochs  = 200
 img_rows, img_cols = 32, 32
 weight_decay = 0.0005
@@ -112,12 +112,10 @@ test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 # Train
 history = model.fit_generator(
         generator=train_triplet_generator,
-        # steps_per_epoch=c10dg.data_size // batch_size + 1,
-        steps_per_epoch=3,
+        steps_per_epoch=c10dg.data_size // batch_size + 1,
         epochs=epochs,
         validation_data=test_triplet_generator,
-        # validation_steps=c10dg.test_size // test_bs + 1,
-        validation_steps=2,
+        validation_steps=c10dg.test_size // test_bs + 1,
         callbacks=[lrschedule, tboard, checkpoint, fgsm_cb]
     )
 
