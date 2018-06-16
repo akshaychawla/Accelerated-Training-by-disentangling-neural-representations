@@ -12,12 +12,12 @@ import numpy as np
 
 
 class dg_cifar10:
-    def __init__(self, batch_size, embedding_units=None, mode=None, num_losses=None):
+    def __init__(self, batch_size, embedding_units=None, mode=None, data_norms=None):
         self.mode = mode
         self.batch_size = batch_size
         self.embedding_units = embedding_units
         self.num_triplets = self.batch_size // 3
-        self.num_losses = num_losses ## This is apart from the final_norms loss!!
+        self.data_norms = data_norms ## This is apart from the final_norms loss!!
 
         ## loading cifar10 data
         (self.x_train, self.y_train), (self.x_test, self.y_test) = cifar10.load_data()
@@ -59,8 +59,8 @@ class dg_cifar10:
                 print("ERROR. Supplied triplet mode but batch_size is not divisible by 3.")
                 sys.exit()
 
-            if num_losses is None:
-                print("ERROR. Supplied triplet mode but num_losses is not set(None).")
+            if data_norms is None:
+                print("ERROR. Supplied triplet mode but data_norms is not set(None).")
                 sys.exit()
 
         elif mode == "normal":
@@ -109,6 +109,11 @@ class dg_cifar10:
         Because Keras.
         """
         tgen = self.TRAIN_single_triplet_generator()
+        dummy_norms = np.zeros((self.batch_size, self.embedding_units))
+        other_dummy = {}
+        for llname, llsize in self.data_norms:
+            other_dummy[llname] = np.zeros((self.batch_size, llsize))
+
         while True:
             L_anc, L_pos, L_neg = [], [], []
             Y_anc, Y_pos, Y_neg = [], [], []
@@ -127,9 +132,11 @@ class dg_cifar10:
             truth = np.vstack((Y_anc, Y_pos, Y_neg))
 
             batch = self.train_dgen.flow(batch, batch_size=self.batch_size, shuffle=False).next()
+            tdict = {"final_norms":dummy_norms, "preds":truth}
+            tdict.update(other_dummy)
 
-            yield  batch, {"final_norms":np.zeros((self.batch_size, self.embedding_units)),
-                           "preds":truth}
+            yield  batch, tdict
+
 
     def TEST_batched_triplet_generator(self, test_bs=100):
         """
@@ -137,16 +144,32 @@ class dg_cifar10:
         """
         self.test_bs = test_bs
         dummy_norms = np.zeros((test_bs, self.embedding_units))
+        other_dummy = {}
+        for llname, llsize in self.data_norms:
+            other_dummy[llname] = np.zeros((test_bs, llsize))
 
         flowing_data = self.test_dgen.flow(self.x_test, self.y_test, batch_size=test_bs, shuffle=False)
 
         while True:
             batch, truth = flowing_data.next()
             print(flowing_data.total_batches_seen, batch.shape, truth.shape)
+
             if batch.shape[0] == test_bs:
-                yield batch, {"final_norms":dummy_norms, "preds":truth}
+                tdict = {"final_norms":dummy_norms, "preds":truth}
+                tdict.update(other_dummy)
+
+                yield batch, tdict
+
             else:
-                yield batch, {"final_norms":np.zeros((batch.shape[0], self.embedding_units)), "preds":truth}
+                custom_data = {}
+                for llname, llsize in self.data_norms:
+                    custom_data[llname] = np.zeros((batch.shape[0], llsize))
+
+                tdict = {"final_norms":np.zeros((batch.shape[0], self.embedding_units)), "preds":truth}
+                tdict.update(custom_data)
+
+                yield batch, tdict
+            
 
 def test_data_generators():
     """
