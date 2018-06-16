@@ -12,3 +12,5 @@ TRIP*
 
 *.pyc
 results/*
+
+*.png
