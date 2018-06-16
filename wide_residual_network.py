@@ -192,8 +192,14 @@ if __name__ == "__main__":
 
     init = (32, 32, 3)
 
-    wrn_28_10 = create_wide_residual_network(init, nb_classes=10, N=2, k=2, dropout=0.0, mode=mode)
+    wrn_28_10 = create_wide_residual_network(
+                (32,32,3),
+                nb_classes=10,
+                N=4, k=10,
+                dropout=0.0,
+                mode=mode
+            )
 
-    wrn_28_10.summary()
+    print(wrn_28_10.summary())
 
-    plot_model(wrn_28_10, "WRN-16-2.png", show_shapes=True, show_layer_names=True)
+    plot_model(wrn_28_10, "WRN-28-10.png", show_shapes=True, show_layer_names=True)
