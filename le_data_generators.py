@@ -123,7 +123,7 @@ class dg_cifar10:
 
             batch = self.train_dgen.flow(batch, batch_size=self.batch_size, shuffle=False).next()
 
-            yield  batch, {"norms":np.zeros((self.batch_size, self.embedding_units)),
+            yield  batch, {"final_norms":np.zeros((self.batch_size, self.embedding_units)),
                            "preds":truth}
 
     def TEST_batched_triplet_generator(self, test_bs=100):
@@ -139,9 +139,9 @@ class dg_cifar10:
             batch, truth = flowing_data.next()
             print(flowing_data.total_batches_seen, batch.shape, truth.shape)
             if batch.shape[0] == test_bs:
-                yield batch, {"norms":dummy_norms, "preds":truth}
+                yield batch, {"final_norms":dummy_norms, "preds":truth}
             else:
-                yield batch, {"norms":np.zeros((batch.shape[0], self.embedding_units)), "preds":truth}
+                yield batch, {"final_norms":np.zeros((batch.shape[0], self.embedding_units)), "preds":truth}
 
 def test_data_generators():
     """
@@ -154,14 +154,14 @@ def test_data_generators():
     x,gt = next(TRAIN_dgen)
     assert x.shape == (129,32,32,3)
     assert gt["preds"].shape == (129,10)
-    assert gt["norms"].shape == (129,300)
+    assert gt["final_norms"].shape == (129,300)
 
     # Test TEST data gen
     TEST_dgen = dg.TEST_batched_triplet_generator(test_bs=50)
     x,gt = next(TEST_dgen)
     assert x.shape == (50,32,32,3)
     assert gt["preds"].shape == (50,10)
-    assert gt["norms"].shape == (50,300)
+    assert gt["final_norms"].shape == (50,300)
 
     # Check speed
     import time
@@ -188,4 +188,3 @@ if __name__ == '__main__':
     # data = triplet_generator.next()
 
     print("YEAH")
-    import ipdb; ipdb.set_trace()
