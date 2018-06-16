@@ -1,5 +1,5 @@
 """
-Callback for fgsm. 
+Callback for fgsm.
 This will attack the model after each epoch
 """
 import numpy as np
@@ -31,7 +31,7 @@ def create_gradient_function(model, input_idx, output_idx):
 class fgsm_callback(Callback):
 
     def __init__(self, eta=0.05):
-        super(fgsm_callback, self).__init__() 
+        super(fgsm_callback, self).__init__()
         self.eta = eta
 
         # data
@@ -48,7 +48,7 @@ class fgsm_callback(Callback):
 
         # normalize test set
         print("[FGSM] Generating normed version of test set..")
-        testX_normed = [] 
+        testX_normed = []
         temp_testdgen = test_dgen.flow(self.testX, self.testY, batch_size=50, shuffle=False)
         for _ in range(len(self.testX)//50):
             x_batch, y_batch = next(temp_testdgen)
@@ -66,12 +66,12 @@ class fgsm_callback(Callback):
         # Performance before attack
         preds_pre_attack = self.model.predict(
                                 x = self.testX_normed,
-                                batch_size=50, 
+                                batch_size=50,
                                 verbose=1
                             )
         preds_pre_attack = preds_pre_attack[-1]
         performance_pre_attack = np.count_nonzero(
-                                np.argmax(preds_pre_attack, axis=1) == 
+                                np.argmax(preds_pre_attack, axis=1) ==
                                 np.argmax(self.testY, axis=1)
                             )
         print("[FGSM]Accuracy before attack is: ", performance_pre_attack/len(preds_pre_attack))
@@ -95,18 +95,15 @@ class fgsm_callback(Callback):
         # Performance after attack
         preds_post_attack = self.model.predict(
                                 x = attacked_testX,
-                                batch_size=50, 
+                                batch_size=50,
                                 verbose=1
                             )
         preds_post_attack = preds_post_attack[-1]
         performance_post_attack = np.count_nonzero(
-                                np.argmax(preds_post_attack, axis=1) == 
+                                np.argmax(preds_post_attack, axis=1) ==
                                 np.argmax(self.testY, axis=1)
                             )
         print("[FGSM]Accuracy after attack is: ", performance_post_attack/len(preds_pre_attack))
 
-        # Clean up 
+        # Clean up
         del calc_grads
-
-
-
