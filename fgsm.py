@@ -15,6 +15,7 @@ def create_gradient_function(model, input_idx, output_idx):
     gt_tensor     = K.placeholder(shape=(None, 10))
     input_tensor  = model.inputs[input_idx]
     output_tensor = model.outputs[output_idx]
+    assert "softmax" in output_tensor.name.lower(), "[ERROR] output tensor name is ",output_tensor.name()
     loss_tensor   = losses.categorical_crossentropy(gt_tensor, output_tensor)
     grads_tensor  = K.gradients(loss_tensor, input_tensor)[0]
 
