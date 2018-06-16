@@ -152,7 +152,7 @@ class dg_cifar10:
 
         while True:
             batch, truth = flowing_data.next()
-            print(flowing_data.total_batches_seen, batch.shape, truth.shape)
+            # print(flowing_data.total_batches_seen, batch.shape, truth.shape)
 
             if batch.shape[0] == test_bs:
                 tdict = {"final_norms":dummy_norms, "preds":truth}
@@ -169,7 +169,7 @@ class dg_cifar10:
                 tdict.update(custom_data)
 
                 yield batch, tdict
-            
+
 
 def test_data_generators():
     """
