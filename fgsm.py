@@ -41,7 +41,22 @@ if __name__ == "__main__":
     else:
         print("Loading weights from location: ", sys.argv[1])
         wts_location = sys.argv[1]
-        model.load_weights(wts_location)  #Load weights
+        model.load_weights(wts_location, by_name=True)  #Load weights
+
+        # Load the final dense layer (preds) weights correctly 
+        import h5py 
+        f = h5py.File(wts_location,"r") 
+        all_layers = list(f.keys())
+        if "preds" in all_layers:
+            print("Found name preds in ", wts_location)
+            preds_wts = [ 
+                    f["preds"]["preds"]["kernel:0"][:,:], 
+                    f["preds"]["preds"]["bias:0"][:]
+                ]
+            model.layers[-1].set_weights(preds_wts)
+        else:
+            print("..Could not find layer by name of preds in", wts_location)
+        f.close()
 
 
     # import ipdb; ipdb.set_trace()
@@ -66,6 +81,17 @@ if __name__ == "__main__":
                 )
     test_dgen.fit(trainX) # IMP! mean,std calculated on training data
 
+    # Generate normed version of dataset 
+    print("Generating normed version of test set..")
+    testX_normed = [] 
+    temp_testdgen = test_dgen.flow(testX, testY, batch_size=50, shuffle=False)
+    for _ in range(len(testX)//50):
+        x_batch, y_batch = next(temp_testdgen)
+        testX_normed.append(x_batch)
+    testX_normed = np.concatenate(testX_normed, axis=0)
+    del temp_testdgen, x_batch, y_batch
+    print("Done")
+
     # FGSM parameters
     # import ipdb; ipdb.set_trace()
     eta = 0.007
@@ -73,14 +99,14 @@ if __name__ == "__main__":
         print("Setting default value of eta...")
     else:
         eta = float(sys.argv[2])
+        print("Using eta = ", eta)
 
     # Performance before attack
-    performance_pre_attack = model.evaluate_generator(
-                            generator = test_dgen.flow(testX, testY, batch_size=50, shuffle=False),
-                            steps = len(testX)/50,
-                            verbose=1,
-                            workers=1,
-                            use_multiprocessing=False
+    performance_pre_attack = model.evaluate(
+                            x = testX_normed, 
+                            y = testY, 
+                            batch_size=50,
+                            verbose=1
                         )
     print("Accuracy before attack is: ", performance_pre_attack[1])
 
@@ -89,21 +115,22 @@ if __name__ == "__main__":
     print("Calculating gradient w.r.t input..")
     calc_grads = create_gradient_function(model, 0, 0)
     grads_X_test = []
-    temp_testdgen = test_dgen.flow(testX, testY, batch_size=50, shuffle=False)
-    for batch_idx in tqdm(range(len(testX)//50)):
-        x_batch, y_batch = next(temp_testdgen)
+    for batch_idx in tqdm(range(0, len(testX_normed), 50)):
+        x_batch = testX_normed[batch_idx: batch_idx+50]
+        y_batch = testY[batch_idx: batch_idx+50]
         _, grads_batch = calc_grads([x_batch, y_batch])
         grads_X_test.append(grads_batch)
     grads_X_test = np.concatenate(grads_X_test, axis=0)
 
     # attacked = orig + eta*sign(grad)
-    assert grads_X_test.shape == testX.shape
-    attacked_testX = testX + eta*np.sign(grads_X_test)
+    assert grads_X_test.shape == testX_normed.shape
+    attacked_testX = testX_normed + eta*np.sign(grads_X_test)
 
     # Performance after attack
-    performance_post_attack = model.evaluate_generator(
-                            generator=test_dgen.flow(attacked_testX, testY, batch_size=50, shuffle=False),
-                            steps=len(attacked_testX)/50,
-                            verbose=1
+    performance_post_attack = model.evaluate(
+                            x = attacked_testX, 
+                            y = testY, 
+                            batch_size = 50,
+                            verbose = 1
                         )
     print("Accuracy after attack is: ", performance_post_attack[1])
