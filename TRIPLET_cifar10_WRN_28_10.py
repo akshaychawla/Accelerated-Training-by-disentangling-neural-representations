@@ -14,6 +14,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
 from loss_layers import triplet_loss_batched_wrapper
 from le_data_generators import dg_cifar10
+from fgsm_callback import fgsm_callback
 
 # mode
 mode = sys.argv[1].lower()
