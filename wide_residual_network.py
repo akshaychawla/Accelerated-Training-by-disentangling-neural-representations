@@ -76,7 +76,10 @@ def conv2_block(input, k=1, dropout=0.0):
     m = Add()([init, x])
     return m
 
-def conv3_block(input, k=1, dropout=0.0):
+def conv3_block(input, k=1, dropout=0.0, i=None):
+    if i is None:
+        raise Exception("Yo. The index i is not set for conv3_block!!")
+
     init = input
 
     channel_axis = 1 if K.image_dim_ordering() == "th" else -1
@@ -94,7 +97,16 @@ def conv3_block(input, k=1, dropout=0.0):
                       use_bias=False)(x)
 
     m = Add()([init, x])
-    return m
+
+    ## The residual has now been added.
+    ## - flattening the entire volume post residual connection.
+    EMBEDDING_UNITS = 300
+    f = Flatten()(m)
+    ## - create normalized embeddings.
+    embeds = Dense(EMBEDDING_UNITS, name="conv3_embeds_%d"%i)(f)
+    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="conv3_norms_%d"%i)(embeds)
+
+    return m, norms
 
 def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.0,
                                  verbose=1, mode="normal"):
@@ -142,8 +154,10 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
     x = expand_conv(x, 64, k, strides=(2, 2))
     nb_conv += 2
 
+    list_of_norms = []
     for i in range(N - 1):
-        x = conv3_block(x, k, dropout)
+        x, norm_c3 = conv3_block(x, k, dropout, i)
+        list_of_norms.append(norm_c3)
         nb_conv += 2
 
     x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
@@ -161,22 +175,24 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
         EMBEDDING_UNITS = 300
 
         embeds = Dense(EMBEDDING_UNITS, name="embeds")(x) ## embeddings for aux loss
-        norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="norms")(embeds) ## normed embeds
+        final_norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="final_norms")(embeds) ## normed embeds
 
         preds = Dense(nb_classes, activation='softmax', name='preds')(x) ## standard output
 
-        model = Model(inputs=ip, outputs=[norms, preds])
+        model = Model(inputs=ip, outputs=list_of_norms + [final_norms, preds])
+
+        print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
+        return model, list_of_norms
 
     elif mode == "normal":
         x = Dense(nb_classes, activation='softmax')(x)
         model = Model(ip, x)
+        print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
+        return model, list_of_norms
 
     else:
         print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
         sys.exit()
-
-    if verbose: print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
-    return model
 
 if __name__ == "__main__":
     from keras.utils import plot_model
@@ -192,7 +208,7 @@ if __name__ == "__main__":
 
     init = (32, 32, 3)
 
-    wrn_28_10 = create_wide_residual_network(
+    wrn_28_10, loss_list = create_wide_residual_network(
                 (32,32,3),
                 nb_classes=10,
                 N=4, k=10,
@@ -201,5 +217,4 @@ if __name__ == "__main__":
             )
 
     print(wrn_28_10.summary())
-
-    plot_model(wrn_28_10, "WRN-28-10.png", show_shapes=True, show_layer_names=True)
+    # plot_model(wrn_28_10, "WRN-28-10.png", show_shapes=True, show_layer_names=True)
