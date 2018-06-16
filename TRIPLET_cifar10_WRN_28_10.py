@@ -110,12 +110,12 @@ test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 # Train
 history = model.fit_generator(
         generator=train_triplet_generator,
-        # steps_per_epoch=c10dg.data_size // batch_size + 1,
-        steps_per_epoch=3,
+        steps_per_epoch=c10dg.data_size // batch_size + 1,
+        # steps_per_epoch=3,
         epochs=epochs,
         validation_data=test_triplet_generator,
-        # validation_steps=c10dg.test_size // test_bs + 1,
-        validation_steps=5,
+        validation_steps=c10dg.test_size // test_bs + 1,
+        # validation_steps=5,
         callbacks=[lrschedule, tboard, checkpoint]
     )
 
