@@ -51,11 +51,6 @@ print("Created folders in .. ",root_folder)
 trainY = to_categorical(trainY)
 testY = to_categorical(testY)
 
-# Data generators
-c10dg = dg_cifar10(batch_size, embedding_units, "triplet")
-train_triplet_generator = c10dg.TRAIN_batched_triplet_generator()
-test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
-
 # Callbacks
 def lr_scheduler_fxn(epoch):
     if epoch<60:
@@ -108,6 +103,11 @@ else:
         loss_weights = loss_weights,
         metrics = {"preds":"accuracy"}
     )
+
+# Data generators
+c10dg = dg_cifar10(batch_size, embedding_units, "triplet", num_losses=len(loss_list))
+train_triplet_generator = c10dg.TRAIN_batched_triplet_generator()
+test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 
 # Train
 history = model.fit_generator(
