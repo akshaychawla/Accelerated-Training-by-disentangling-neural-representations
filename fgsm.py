@@ -41,7 +41,22 @@ if __name__ == "__main__":
     else:
         print("Loading weights from location: ", sys.argv[1])
         wts_location = sys.argv[1]
-        model.load_weights(wts_location)  #Load weights
+        model.load_weights(wts_location, by_name=True)  #Load weights
+
+        # Load the final dense layer (preds) weights correctly 
+        import h5py 
+        f = h5py.File(wts_location,"r") 
+        all_layers = list(f.keys())
+        if "preds" in all_layers:
+            print("Found name preds in ", wts_location)
+            preds_wts = [ 
+                    f["preds"]["preds"]["kernel:0"][:,:], 
+                    f["preds"]["preds"]["bias:0"][:]
+                ]
+            model.layers[-1].set_weights(preds_wts)
+        else:
+            print("..Could not find layer by name of preds in", wts_location)
+        f.close()
 
 
     # import ipdb; ipdb.set_trace()
