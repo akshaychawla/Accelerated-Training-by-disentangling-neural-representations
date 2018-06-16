@@ -107,3 +107,7 @@ class fgsm_callback(Callback):
 
         # Clean up
         del calc_grads
+
+
+if __name__ == '__main__':
+    print("SCRIPT CONTAINS CLASS FOR fgsm_callback.")
