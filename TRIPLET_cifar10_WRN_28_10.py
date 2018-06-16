@@ -34,7 +34,7 @@ else:
     sys.exit()
 
 # hyperparameters
-batch_size = 129
+batch_size = 30
 epochs  = 200
 img_rows, img_cols = 32, 32
 weight_decay = 0.0005
@@ -71,6 +71,7 @@ checkpoint = ModelCheckpoint(
                 verbose=True,
                 save_weights_only=True
             )
+fgsm_cb    = fgsm_callback()
 
 # Network
 model, data_norms = wrn.create_wide_residual_network(
@@ -111,13 +112,13 @@ test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 # Train
 history = model.fit_generator(
         generator=train_triplet_generator,
-        steps_per_epoch=c10dg.data_size // batch_size + 1,
-        # steps_per_epoch=3,
+        # steps_per_epoch=c10dg.data_size // batch_size + 1,
+        steps_per_epoch=3,
         epochs=epochs,
         validation_data=test_triplet_generator,
-        validation_steps=c10dg.test_size // test_bs + 1,
-        # validation_steps=5,
-        callbacks=[lrschedule, tboard, checkpoint]
+        # validation_steps=c10dg.test_size // test_bs + 1,
+        validation_steps=2,
+        callbacks=[lrschedule, tboard, checkpoint, fgsm_cb]
     )
 
 # History
