@@ -33,7 +33,7 @@ else:
     sys.exit()
 
 # hyperparameters
-batch_size = 129
+batch_size = 30
 epochs  = 200
 img_rows, img_cols = 32, 32
 weight_decay = 0.0005
@@ -72,7 +72,7 @@ checkpoint = ModelCheckpoint(
             )
 
 # Network
-model, loss_list = wrn.create_wide_residual_network(
+model, data_norms = wrn.create_wide_residual_network(
             (32,32,3),
             nb_classes=10,
             N=4, k=10,
@@ -90,13 +90,11 @@ else:
     loss_dict = {"final_norms" : loss_triplet, "preds" : "categorical_crossentropy"}
     loss_weights = {"final_norms" : 1.0, "preds" : 1.0}
 
-    for loss_tensor in loss_list:
-        print(loss_tensor.name)
-        llname = loss_tensor.name.split('/')[0]
+    for llname, llsize in data_norms:
+        print(llname)
         loss_dict[llname] = loss_triplet
         loss_weights[llname] = 1.0
 
-    import ipdb; ipdb.set_trace()
     model.compile(
         optimizer = sgd,
         loss = loss_dict,
@@ -105,17 +103,19 @@ else:
     )
 
 # Data generators
-c10dg = dg_cifar10(batch_size, embedding_units, "triplet", num_losses=len(loss_list))
+c10dg = dg_cifar10(batch_size, embedding_units, "triplet", data_norms=data_norms)
 train_triplet_generator = c10dg.TRAIN_batched_triplet_generator()
 test_triplet_generator = c10dg.TEST_batched_triplet_generator(test_bs)
 
 # Train
 history = model.fit_generator(
         generator=train_triplet_generator,
-        steps_per_epoch=c10dg.data_size // batch_size + 1,
+        # steps_per_epoch=c10dg.data_size // batch_size + 1,
+        steps_per_epoch=3,
         epochs=epochs,
         validation_data=test_triplet_generator,
-        validation_steps=c10dg.test_size // test_bs + 1,
+        # validation_steps=c10dg.test_size // test_bs + 1,
+        validation_steps=5,
         callbacks=[lrschedule, tboard, checkpoint]
     )
 
