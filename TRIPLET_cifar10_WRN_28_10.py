@@ -21,6 +21,12 @@ print("\n\n\t\tTRAINING MODE: %s\n\n"%mode)
 if mode == "triplet":
     root_folder = "./TRIP_{}/".format(time.time())
 elif mode == "normal":
+    rir = raw_input("\n\nWARNING: you are using TRIPLET_cifar10_WRN_28_10.py but are passing 'normal' as the mode.\nAre you sure you want to continue?<y/n>:")
+    if rir == 'y':
+        pass
+    else:
+        print("Responded %s. Stopping."%rir)
+        sys.exit()
     root_folder = "./RUN_{}/".format(time.time())
 else:
     print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
@@ -71,7 +77,7 @@ checkpoint = ModelCheckpoint(
             )
 
 # Network
-model = wrn.create_wide_residual_network(
+model, loss_list = wrn.create_wide_residual_network(
             (32,32,3),
             nb_classes=10,
             N=4, k=10,
@@ -86,10 +92,20 @@ if mode == "normal":
     model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
 else:
     loss_triplet = triplet_loss_batched_wrapper(num_triplets=batch_size//3)
+    loss_dict = {"final_norms" : loss_triplet, "preds" : "categorical_crossentropy"}
+    loss_weights = {"final_norms" : 1.0, "preds" : 1.0}
+
+    for loss_tensor in loss_list:
+        print(loss_tensor.name)
+        llname = loss_tensor.name.split('/')[0]
+        loss_dict[llname] = loss_triplet
+        loss_weights[llname] = 1.0
+
+    import ipdb; ipdb.set_trace()
     model.compile(
         optimizer = sgd,
-        loss = {"norms" : loss_triplet, "preds" : "categorical_crossentropy"},
-        loss_weights = {"norms" : 1.0, "preds" : 1.0},
+        loss = loss_dict,
+        loss_weights = loss_weights,
         metrics = {"preds":"accuracy"}
     )
 
