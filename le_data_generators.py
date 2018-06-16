@@ -12,11 +12,12 @@ import numpy as np
 
 
 class dg_cifar10:
-    def __init__(self, batch_size, embedding_units=None, mode=None):
+    def __init__(self, batch_size, embedding_units=None, mode=None, num_losses=None):
         self.mode = mode
         self.batch_size = batch_size
         self.embedding_units = embedding_units
         self.num_triplets = self.batch_size // 3
+        self.num_losses = num_losses ## This is apart from the final_norms loss!!
 
         ## loading cifar10 data
         (self.x_train, self.y_train), (self.x_test, self.y_test) = cifar10.load_data()
@@ -56,6 +57,10 @@ class dg_cifar10:
 
             if self.batch_size%3 != 0:
                 print("ERROR. Supplied triplet mode but batch_size is not divisible by 3.")
+                sys.exit()
+
+            if num_losses is None:
+                print("ERROR. Supplied triplet mode but num_losses is not set(None).")
                 sys.exit()
 
         elif mode == "normal":
