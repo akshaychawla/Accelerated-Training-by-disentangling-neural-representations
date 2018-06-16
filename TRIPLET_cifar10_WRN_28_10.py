@@ -33,7 +33,7 @@ else:
     sys.exit()
 
 # hyperparameters
-batch_size = 30
+batch_size = 129
 epochs  = 200
 img_rows, img_cols = 32, 32
 weight_decay = 0.0005
