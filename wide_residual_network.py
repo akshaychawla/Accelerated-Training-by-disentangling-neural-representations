@@ -103,8 +103,7 @@ def conv3_block(input, k=1, dropout=0.0, i=None):
     EMBEDDING_UNITS = 300
     f = Flatten()(m)
     ## - create normalized embeddings.
-    embeds = Dense(EMBEDDING_UNITS, name="conv3_embeds_%d"%i)(f)
-    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="conv3_norms_%d"%i)(embeds)
+    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="conv3_norms_%d"%i)(f)
 
     return m, norms
 
@@ -181,14 +180,21 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
 
         model = Model(inputs=ip, outputs=list_of_norms + [final_norms, preds])
 
-        print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
-        return model, list_of_norms
+        data_norms = [] ## (.name, .output_shape[1])
+        for _layer in model.layers:
+            if ("_norms_" in _layer.name) and ("final_norms" != _layer.name):
+                data_norms.append((_layer.name, _layer.output_shape[1]))
 
-    elif mode == "normal":
-        x = Dense(nb_classes, activation='softmax')(x)
-        model = Model(ip, x)
+        assert len(list_of_norms)==len(data_norms), "Number of intermediate losses does not match retrieved losses!"
+
         print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
-        return model, list_of_norms
+        return model, data_norms
+
+    # elif mode == "normal":
+    #     x = Dense(nb_classes, activation='softmax')(x)
+    #     model = Model(ip, x)
+    #     print("Wide Residual Network-%d-%d %s created." % (nb_conv, k, mode))
+    #     return model, list_of_norms
 
     else:
         print("\n\n\t\tINCORRECT MODE ARG RECEIVED. EXITING.\n\n")
