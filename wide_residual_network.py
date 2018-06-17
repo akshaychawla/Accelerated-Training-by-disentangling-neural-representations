@@ -56,7 +56,10 @@ def conv1_block(input, k=1, dropout=0.0):
     m = Add()([init, x])
     return m
 
-def conv2_block(input, k=1, dropout=0.0):
+def conv2_block(input, k=1, dropout=0.0, i=None):
+    if i is None:
+        raise Exception("Yo. The index i is not set for conv2_block!!")
+
     init = input
 
     channel_axis = 1 if K.image_dim_ordering() == "th" else -1
@@ -74,7 +77,15 @@ def conv2_block(input, k=1, dropout=0.0):
                       use_bias=False)(x)
 
     m = Add()([init, x])
-    return m
+
+    ## The residual has now been added.
+    ## - flattening the entire volume post residual connection.
+    EMBEDDING_UNITS = 300
+    f = Flatten()(m)
+    ## - create normalized embeddings.
+    norms = Lambda(lambda x: K.l2_normalize(x, axis=-1), name="conv2_norms_%d"%i)(f)
+
+    return m, norms
 
 def conv3_block(input, k=1, dropout=0.0, i=None):
     if i is None:
@@ -124,6 +135,7 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
     :return:
     """
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
+    list_of_norms = [] ## For collecting all aux triplet loss tensors(except final_norms).
 
     ip = Input(shape=input_dim)
 
@@ -144,7 +156,8 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
     nb_conv += 2
 
     for i in range(N - 1):
-        x = conv2_block(x, k, dropout)
+        x, norm_c2 = conv2_block(x, k, dropout, i)
+        list_of_norms.append(norm_c2)
         nb_conv += 2
 
     x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
@@ -153,7 +166,6 @@ def create_wide_residual_network(input_dim, nb_classes=100, N=2, k=1, dropout=0.
     x = expand_conv(x, 64, k, strides=(2, 2))
     nb_conv += 2
 
-    list_of_norms = []
     for i in range(N - 1):
         x, norm_c3 = conv3_block(x, k, dropout, i)
         list_of_norms.append(norm_c3)
