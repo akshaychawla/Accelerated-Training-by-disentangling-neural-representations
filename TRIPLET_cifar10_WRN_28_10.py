@@ -88,7 +88,7 @@ sgd = SGD(lr=0.1, momentum=0.9, nesterov=True)
 if mode == "normal":
     model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
 else:
-    loss_triplet = triplet_loss_batched_wrapper(num_triplets=batch_size//3)
+    loss_triplet = triplet_loss_batched_wrapper(num_triplets=batch_size//3, alpha=0.5)
     loss_dict = {"final_norms" : loss_triplet, "preds" : "categorical_crossentropy"}
     loss_weights = {"final_norms" : 1.0, "preds" : 1.0}
 
