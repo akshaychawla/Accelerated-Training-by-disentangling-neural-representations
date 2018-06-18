@@ -94,7 +94,11 @@ else:
 
     for llname, llsize in data_norms:
         print(llname)
-        loss_dict[llname] = loss_triplet
+        # loss_dict[llname] = loss_triplet
+        if "conv2" in llname:
+            loss_dict[llname] = triplet_loss_batched_wrapper(num_triplets=batch_size//3, alpha=0.2)
+        else:
+            loss_dict[llname] = triplet_loss_batched_wrapper(num_triplets=batch_size//3, alpha=0.5)
         loss_weights[llname] = 1.0
 
     model.compile(
